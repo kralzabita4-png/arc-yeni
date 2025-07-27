@@ -227,7 +227,7 @@ queue_5 : "**Sırada Sadece Bir Parça Var**, **Lütfen Biraz Daha Parça Ekleyi
 
 # All Streaming Lines
 
-stream_1 : "📻 <b>Radyo Başladı!</b>\n\n<b>Şarkı:</b> <a href={1}>{0}</a>\n⏱️ <b>Süre:</b> <code>{2}</code>\n <b>İstek:</b> <a href=\>tg://user?id={4}\{3}</a>\n\n📡 Şimdi yayındayız — kulaklığını tak!"
+stream_1 : "📻 <b>Radyo Başladı!</b>\n\n<b>Şarkı:</b> <a href={1}>{0}</a>\n⏱️ <b>Süre:</b> <code>{2}</code>\n <b>İstek:</b> <a href=>tg:user?id={4}{3}</a>\n\n📡 Şimdi yayındayız — kulaklığını tak!"
 stream_2 : "<b><blockquote>🎻 Müzik Keyfin Hazır! </blockquote></b>\n\n<b><blockquote>🎼<u>Parça <u> :{0}\n<b>🧬<u>Süre<u> :</b> {2} dakika\n<b>👁‍🗨️<u>Dinleyici </b> {3}<b></blockquote>\n<b><blockquote>"
 stream_3 : "🎼 **<u>Şarkı Detayları:**</u>\n\n→ **<u>Şarkı</u>:** __{0}__\n→ **<u>Süre</u>:** __{2}__\n→ **<u>İstek Sahibi</u>:** __{3}__"
 stream_4 : "🎧 **<u>Şimdi Çalan:**</u>\n\n→ **<u>Şarkı Adı</u>:** __{0}__\n→ **<u>Süre</u>:** __{2}__\n→ **<u>Talep</u>:** __{3}__"
