@@ -3,14 +3,14 @@ from pyrogram.types import Message
 from config import BANNED_USERS
 from ArchMusic import app
 
-# İptal edilen kullanıcılar
+# Etiketlemeyi iptal eden kullanıcılar için liste
 cancel_users = set()
 
-# /cancel komutu
+# /cancel komutu — işlemi durdurur
 @app.on_message(filters.command("cancel") & filters.group & ~BANNED_USERS)
 async def cancel_atag(client, message: Message):
     cancel_users.add(message.from_user.id)
-    await message.reply("❌ İşlem iptal edildi. Etiketleme durduruldu.")
+    await message.reply("❌ Etiketleme işlemi iptal edildi.")
 
 # /atag komutu — yöneticileri etiketler
 @app.on_message(filters.command("atag") & filters.group & ~BANNED_USERS)
@@ -19,13 +19,13 @@ async def atag_command(client, message: Message):
 
     if user_id in cancel_users:
         cancel_users.remove(user_id)
-        return await message.reply("⛔ Etiketleme işlemi iptal edilmişti.")
+        return await message.reply("⛔ Etiketleme işlemi zaten iptal edilmişti.")
 
     try:
         chat_id = message.chat.id
         admins = await app.get_chat_administrators(chat_id)
     except Exception as e:
-        return await message.reply(f"❌ Yöneticiler alınamadı: {e}")
+        return await message.reply(f"❌ Yöneticiler alınamadı: {str(e)}")
 
     if not admins:
         return await message.reply("❗ Grupta hiç yönetici bulunamadı.")
