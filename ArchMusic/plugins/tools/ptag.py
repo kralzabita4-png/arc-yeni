@@ -4,7 +4,7 @@ from pyrogram.types import Message
 from config import BANNED_USERS
 from ArchMusic import app
 
-# 50 adet güzel söz
+# 50 adet güzel söz listesi
 GUZEL_SOZLER = [
     "Sen bir yıldızsın, ışığınla parlıyorsun 🌟",
     "Gülüşün bu dünyaya armağan 😄",
@@ -57,28 +57,40 @@ GUZEL_SOZLER = [
     "Sen sadece bir isim değil, bir anlam taşıyorsun 🧡",
     "Senin güzelliğin içinden geliyor 🔥"
 ]
-# /ptag komutu: Tek kullanıcıya güzel sözle etiket atar
+
+# /ptag komutu — yalnızca yöneticiler için
 @app.on_message(filters.command("ptag") & filters.group & ~BANNED_USERS)
-async def tekli_guzel_soz(client, message: Message):
+async def ptag_command(client, message: Message):
+    # Sadece yöneticilere izin ver
+    try:
+        member = await client.get_chat_member(message.chat.id, message.from_user.id)
+        if not (member.status in ("administrator", "creator")):
+            return await message.reply("⛔ Bu komutu sadece yöneticiler kullanabilir.")
+    except Exception:
+        return await message.reply("⚠️ Yetki kontrolü yapılamadı.")
+
     if len(message.command) < 2:
         return await message.reply("❗ Lütfen bir kullanıcı adı belirtin: `/ptag @kullanici`")
 
     kullanici_adi = message.text.split()[1]
     try:
-        user = await app.get_users(kullanici_adi)
+        user = await client.get_users(kullanici_adi)
         soz = random.choice(GUZEL_SOZLER)
+
         await message.reply(
-            f"{soz}\n\n👤 [{user.first_name}](tg://user?id={user.id})",
+            f"{soz}\n👤 [{user.first_name}](tg://user?id={user.id})",
             quote=False
         )
+
         await message.reply(
-            f"✅ Etiketleme tamamlandı: [{user.first_name}](tg://user?id={user.id})",
+            f"✅ Etiketlendi: [{user.first_name}](tg://user?id={user.id})",
             quote=True
         )
-    except Exception as e:
-        await message.reply(f"❌ Kullanıcı bulunamadı ya da hata oluştu.\n\n`{e}`", quote=True)
 
-# Bilgilendirme komutu: /cancel_ptag (aktif iptal işlemi olmadığını belirtir)
+    except Exception as e:
+        await message.reply(f"❌ Etiketleme başarısız.\nSebep: `{e}`")
+
+# /cancel_ptag — iptal mesajı gösterir
 @app.on_message(filters.command("cancel_ptag") & filters.group & ~BANNED_USERS)
 async def cancel_ptag(client, message: Message):
-    await message.reply("ℹ️ Tekli etiketleme komutu anlık çalışır. İptal edilecek bir işlem yok.")
+    await message.reply("ℹ️ Tekli etiketleme zaten anlık çalışır. İptal edecek işlem yok.")
