@@ -22,44 +22,41 @@ async def download_user_photo(user_id: int, save_dir="pfps"):
     return None
 
 
-# 📝 Log mesajı gönder ve dosyaya kaydet
+# 📝 Log gönder ve dosyaya kaydet
 async def send_log(text: str, user_id: int = None, chat=None):
     try:
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        # Profil fotoğrafı indir
-        await download_user_photo(user_id)
+        if user_id:
+            await download_user_photo(user_id)
 
-        # Üye sayısı ve grup linki ekle
+        # Grup bilgileri
         if chat:
             try:
                 members = await app.get_chat_members_count(chat.id)
                 text += f"\n👥 Üye Sayısı: {members}"
             except Exception as e:
-                print(f"[UYARI] Üye sayısı alınamadı: {e}")
+                text += f"\n👥 Üye Sayısı: Alınamadı ({e})"
 
             try:
-                if chat.username:
-                    link = f"https://t.me/{chat.username}"
-                else:
+                link = f"https://t.me/{chat.username}" if chat.username else None
+                if not link:
                     full_chat = await app.get_chat(chat.id)
-                    link = full_chat.invite_link if full_chat.invite_link else None
-                if link:
-                    text += f"\n🔗 Grup Linki: {link}"
+                    link = full_chat.invite_link
+                text += f"\n🔗 Grup Linki: {link if link else 'Yok veya alınamadı'}"
             except Exception as e:
-                print(f"[UYARI] Grup linki alınamadı: {e}")
+                text += f"\n🔗 Grup Linki: Alınamadı ({e})"
 
-        # Mesajı log grubuna gönder
         await app.send_message(LOG_GROUP_ID, f"🕒 `{timestamp}`\n\n{text}")
 
-        # Dosyaya yaz
         with open("logs.txt", "a", encoding="utf-8") as f:
             f.write(f"[{timestamp}]\n{text}\n\n")
+
     except Exception as e:
         print(f"[HATA] Log gönderilemedi: {e}")
 
 
-# ✅ BOT GRUBA EKLENDİ – KULLANICI EKLENDİ
+# ✅ Yeni üye geldi
 @app.on_message(filters.new_chat_members)
 async def on_new_member(client: Client, message: Message):
     bot_id = (await client.get_me()).id
@@ -83,7 +80,7 @@ async def on_new_member(client: Client, message: Message):
         await send_log(text, user.id, chat=chat)
 
 
-# ✅ BOT / KULLANICI AYRILDI
+# ✅ Üye ayrıldı
 @app.on_message(filters.left_chat_member)
 async def on_left_member(client: Client, message: Message):
     bot_id = (await client.get_me()).id
@@ -107,7 +104,7 @@ async def on_left_member(client: Client, message: Message):
     await send_log(text, user.id, chat=chat)
 
 
-# ✅ TÜM ÜYELİK DEĞİŞİKLİKLERİ
+# ✅ Üyelik değişikliği (admin, ban, vs.)
 @app.on_chat_member_updated()
 async def on_chat_member_update(client: Client, update: ChatMemberUpdated):
     old = update.old_chat_member
@@ -118,38 +115,44 @@ async def on_chat_member_update(client: Client, update: ChatMemberUpdated):
     if old.status == new.status:
         return
 
+    try:
+        mention = user.mention if user else "Bilinmiyor"
+        uid = user.id if user else None
+    except:
+        mention = "Bilinmiyor"
+        uid = None
+
     if new.status == ChatMemberStatus.ADMINISTRATOR:
         text = (
             f"🛡️ <b>Yönetici Yapıldı</b>\n"
-            f"👤 {user.mention}\n🆔 `{user.id}`\n"
+            f"👤 {mention}\n🆔 `{uid}`\n"
             f"👥 {chat.title} (`{chat.id}`)"
         )
     elif old.status == ChatMemberStatus.ADMINISTRATOR and new.status == ChatMemberStatus.MEMBER:
         text = (
             f"⚠️ <b>Yönetici Yetkisi Alındı</b>\n"
-            f"👤 {user.mention}\n🆔 `{user.id}`\n"
+            f"👤 {mention}\n🆔 `{uid}`\n"
             f"👥 {chat.title} (`{chat.id}`)"
         )
     elif new.status == ChatMemberStatus.BANNED:
         text = (
             f"⛔ <b>Kullanıcı Banlandı</b>\n"
-            f"👤 {user.mention}\n🆔 `{user.id}`\n"
+            f"👤 {mention}\n🆔 `{uid}`\n"
             f"👥 {chat.title} (`{chat.id}`)"
         )
     elif old.status == ChatMemberStatus.BANNED and new.status == ChatMemberStatus.MEMBER:
         text = (
             f"🔓 <b>Ban Kaldırıldı</b>\n"
-            f"👤 {user.mention}\n🆔 `{user.id}`\n"
+            f"👤 {mention}\n🆔 `{uid}`\n"
             f"👥 {chat.title} (`{chat.id}`)"
         )
     elif new.status == ChatMemberStatus.LEFT:
         text = (
             f"🚪 <b>Kullanıcı Ayrıldı</b>\n"
-            f"👤 {user.mention}\n🆔 `{user.id}`\n"
+            f"👤 {mention}\n🆔 `{uid}`\n"
             f"👥 {chat.title} (`{chat.id}`)"
         )
     else:
         return
 
-    await send_log(text, user.id, chat=chat)
-    
+    await send_log(text, uid, chat=chat)
