@@ -148,7 +148,6 @@ async def cancel_tagging(client, cq: CallbackQuery):
         return await cq.answer("Etiketleme bulunamadı.", show_alert=True)
 
     # Etiketleme işlemini iptal ediyoruz
-    print(f"Session Active: {session['active']}")  # Debugging: session aktif mi?
     session["active"] = False
     tag_sessions.pop(chat_id, None)
 
@@ -169,7 +168,8 @@ async def run_tagging(client, msg: Message, session: dict):
 
     if single:
         for user in members:
-            if not tag_sessions[chat_id]["active"]:
+            # Eğer aktif değilse, işlemi durduruyoruz
+            if not tag_sessions.get(chat_id, {}).get("active", False):
                 break
             try:
                 await msg.reply_text(f"[{user.first_name}](tg://user?id={user.id}) {custom_msg}")
@@ -183,7 +183,8 @@ async def run_tagging(client, msg: Message, session: dict):
     else:
         chunks = [members[i:i + chunk_size] for i in range(0, len(members), chunk_size)]
         for group in chunks:
-            if not tag_sessions[chat_id]["active"]:
+            # Eğer aktif değilse, işlemi durduruyoruz
+            if not tag_sessions.get(chat_id, {}).get("active", False):
                 break
             tags = " ".join(f"[{u.first_name}](tg://user?id={u.id})" for u in group)
             try:
@@ -199,6 +200,7 @@ async def run_tagging(client, msg: Message, session: dict):
     last_user = tag_sessions[chat_id].get("last")
     name = f"[{last_user.first_name}](tg://user?id={last_user.id})" if last_user else "Yok"
 
+    # Etiketleme işlemi bitti, session'ı temizle
     tag_sessions.pop(chat_id, None)
 
     await msg.reply(
