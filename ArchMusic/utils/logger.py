@@ -3,7 +3,6 @@ import psutil
 import time
 from datetime import timedelta, datetime
 from ArchMusic import app
-from ArchMusic.utils.startup import app_start_time
 from ArchMusic.utils.database import is_on_off
 from ArchMusic.utils.database.memorydatabase import (
     get_active_chats, get_active_video_chats)
@@ -11,8 +10,6 @@ from ArchMusic.utils.database import (
     get_global_tops, get_particulars, get_queries,
     get_served_chats, get_served_users,
     get_sudoers, get_top_chats, get_topp_users)
-
-
 
 
 async def play_logs(message, streamtype):
@@ -38,9 +35,7 @@ async def play_logs(message, streamtype):
     else:
         chatusername = "Gizli Grup"
 
-    # Bot uptime
-    uptime_sec = time.time() - app_start_time
-    bot_uptime = str(timedelta(seconds=int(uptime_sec)))
+    # **Bot uptime kaldırıldı**
 
     # Sunucu uptime
     boot_time = datetime.fromtimestamp(psutil.boot_time())
@@ -93,7 +88,6 @@ async def play_logs(message, streamtype):
 └ 💾 Disk: `{DISK}`
 
 ⏱️ **Uptime Bilgisi**
-├ 🤖 Bot Çalışma Süresi: `{bot_uptime}`
 └ 💻 Sunucu Uptime: `{system_uptime}`
 
 📍 **Kullanıcı Konumu**
