@@ -2,7 +2,8 @@ from config import LOG, LOG_GROUP_ID
 import psutil
 import time
 from datetime import timedelta, datetime
-from ArchMusic import app, app_start_time
+from ArchMusic import app
+from ArchMusic.utils.startup import app_start_time
 from ArchMusic.utils.database import is_on_off
 from ArchMusic.utils.database.memorydatabase import (
     get_active_chats, get_active_video_chats)
@@ -10,6 +11,7 @@ from ArchMusic.utils.database import (
     get_global_tops, get_particulars, get_queries,
     get_served_chats, get_served_users,
     get_sudoers, get_top_chats, get_topp_users)
+
 
 
 async def play_logs(message, streamtype):
