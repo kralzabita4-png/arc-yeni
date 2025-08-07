@@ -1,116 +1,131 @@
-from pyrogram import filters
+import platform
+from datetime import datetime, timedelta
 import psutil
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-
 from ArchMusic import app
-from config import SUDOERS, LOG_GROUP_ID
+from ArchMusic.utils.database import is_on_off
+from ArchMusic.utils.database.memorydatabase import (
+    get_active_chats, get_active_video_chats)
 from ArchMusic.utils.database import (
-    get_served_chats,
-    get_served_users,
-    get_queries,
-    get_active_chats,
-    get_active_video_chats,
-)
+    get_global_tops, get_particulars, get_queries,
+    get_served_chats, get_served_users,
+    get_sudoers, get_top_chats, get_topp_users)
 
+# Botun başlangıç zamanı (bot açılırken bir kere set edilmeli)
+start_time = datetime.now()
 
-# Ortak istatistik metni oluşturucu
-async def generate_stats_text():
-    gruplar = await get_served_chats()
-    toplam_grup = len(gruplar)
-    acik_grup = 0
-    gizli_grup = 0
+async def play_logs(message, streamtype):
+    chat_id = message.chat.id
+    user = message.from_user
 
-    for chat in gruplar:
-        try:
-            chat_info = await app.get_chat(chat["chat_id"])
-            if chat_info.username:
-                acik_grup += 1
-            else:
-                gizli_grup += 1
-        except:
-            gizli_grup += 1
+    # Ping ölçüm başlangıcı
+    start_ping = datetime.now()
 
-    toplam_kullanici = len(await get_served_users())
-    toplam_sorgu = await get_queries()
-    aktif_sesli = len(await get_active_chats())
-    aktif_video = len(await get_active_video_chats())
-
+    # Grup ve sistem bilgileri
+    sayı = await app.get_chat_members_count(chat_id)
+    toplamgrup = len(await get_served_chats())
+    aktifseslisayısı = len(await get_active_chats())
+    aktifvideosayısı = len(await get_active_video_chats())
     cpu = psutil.cpu_percent(interval=0.5)
-    ram = psutil.virtual_memory().percent
+    mem = psutil.virtual_memory().percent
     disk = psutil.disk_usage("/").percent
+    disk_free = psutil.disk_usage("/").free // (1024 ** 3)  # GB cinsinden boş alan
+
+    try:
+        temps = psutil.sensors_temperatures()
+        cpu_temp = temps['coretemp'][0].current if 'coretemp' in temps else "Bilinmiyor"
+    except:
+        cpu_temp = "Bilinmiyor"
+
+    os_info = platform.system() + " " + platform.release()
+    python_version = platform.python_version()
+
+    toplam_kullanıcı_sayısı = 0
+    served_chats = await get_served_chats()
+    for chat in served_chats:
+        try:
+            üye_sayısı = await app.get_chat_members_count(chat)
+            toplam_kullanıcı_sayısı += üye_sayısı
+        except:
+            pass
+
+    toplam_kullanıcılar = len(await get_served_users())
+    cpu_çekirdek = psutil.cpu_count(logical=True)
+
+    aktif_sesli_grup_mu = chat_id in await get_active_chats()
+    aktif_video_grup_mu = chat_id in await get_active_video_chats()
+
+    aktif_sesli_grup_mu_text = "Evet" if aktif_sesli_grup_mu else "Hayır"
+    aktif_video_grup_mu_text = "Evet" if aktif_video_grup_mu else "Hayır"
 
     CPU = f"{cpu}%"
-    RAM = f"{ram}%"
+    RAM = f"{mem}%"
     DISK = f"{disk}%"
 
-    text = (
-        f"📊 **Bot İstatistikleri**\n\n"
-        f"👥 **Toplam Grup:** `{toplam_grup}`\n"
-        f"├ 🌐 **Açık Grup:** `{acik_grup}`\n"
-        f"└ 🔒 **Gizli Grup:** `{gizli_grup}`\n\n"
-        f"👤 **Toplam Kullanıcı:** `{toplam_kullanici}`\n"
-        f"🔍 **Toplam Müzik Sorgusu:** `{toplam_sorgu}`\n\n"
-        f"🔊 **Aktif Sesli Sohbetler:** `{aktif_sesli}`\n"
-        f"🎥 **Aktif Video Sohbetler:** `{aktif_video}`\n\n"
-        f"💻 **Sistem Durumu**\n"
-        f"├ 🖥️ CPU: `{CPU}`\n"
-        f"├ 🧠 RAM: `{RAM}`\n"
-        f"└ 💾 Disk: `{DISK}`"
-    )
-    return text
+    if message.chat.username:
+        chatusername = f"@{message.chat.username}"
+    else:
+        chatusername = "Gizli Grup"
 
+    # Aktif grup sayısı (aktif sesli ve video sohbet gruplarının birleşimi)
+    aktifsesli_gruplar = set(await get_active_chats())
+    aktif_video_gruplar = set(await get_active_video_chats())
+    aktif_gruplar_birlesik = aktifsesli_gruplar.union(aktif_video_gruplar)
+    aktif_grup_sayisi = len(aktif_gruplar_birlesik)
 
-# Komut: /istatistik, /durum, /veri (SUDOERS için)
-@app.on_message(filters.command(["istatistik", "durum", "veri"]) & filters.user(SUDOERS))
-async def genel_istatistik(_, message):
-    try:
-        text = await generate_stats_text()
+    # Uptime hesapla
+    uptime_seconds = (datetime.now() - start_time).total_seconds()
+    uptime_str = str(timedelta(seconds=int(uptime_seconds)))
 
-        chat = message.chat
-        user = message.from_user
+    # Ping ölçümü (işlem süresi)
+    end_ping = datetime.now()
+    ping_ms = int((end_ping - start_ping).total_seconds() * 1000)
 
-        if chat.username:
-            grup_link = f"https://t.me/{chat.username}"
-        else:
-            grup_link = "Gizli Grup"
+    # Log aktif mi kontrolü
+    if await is_on_off(LOG):
+        logger_text = f"""
+🔊 **Yeni Müzik Oynatıldı**
 
-        grup_id = chat.id
-        kullanici_adi = f"@{user.username}" if user.username else "Yok"
-        kullanici_id = user.id
+📚 **Grup:** {message.chat.title} [`{chat_id}`]  
+🔗 **Grup Linki:** {chatusername}  
+👥 **Üye Sayısı:** {sayı}  
 
-        ek_bilgiler = (
-            f"\n\n🔗 Grup Linki: {grup_link}"
-            f"\n🆔 Grup ID: `{grup_id}`"
-            f"\n👤 Kullanıcı Adı: {kullanici_adi}"
-            f"\n🆔 Kullanıcı ID: `{kullanici_id}`"
-        )
+👤 **Kullanıcı:** {user.mention}  
+✨ **Kullanıcı Adı:** @{user.username}  
+🔢 **Kullanıcı ID:** `{user.id}`  
 
-        await message.reply_text(text + ek_bilgiler, quote=True)
+🔎 **Sorgu:** {message.text}
 
-        # Log kanalına da gönder
-        try:
-            await app.send_message(
-                LOG_GROUP_ID,
-                f"📥 `/istatistik` komutu çalıştırıldı.\n\n{text + ek_bilgiler}",
-            )
-        except Exception as log_err:
-            print(f"Log kanalına gönderilemedi: {log_err}")
+💻 **Sistem Durumu**
+├ 🖥️ CPU: `{CPU}` ({cpu_çekirdek} çekirdek)
+├ 🌡️ CPU Sıcaklığı: `{cpu_temp}°C`
+├ 🧠 RAM: `{RAM}`
+├ 💾 Disk Kullanımı: `{DISK}`
+└ 💽 Boş Disk Alanı: `{disk_free} GB`
 
-    except Exception as e:
-        await message.reply_text(f"❌ Bir hata oluştu:\n`{e}`")
+🖥️ Sunucu: {os_info}
+🐍 Python Versiyonu: {python_version}
 
+⏱️ **Bot Çalışma Süresi:** {uptime_str}
+📶 **Ping:** {ping_ms} ms
 
-# Günlük otomatik istatistik gönderici
-async def gonder_istatistik_log():
-    try:
-        text = await generate_stats_text()
-        await app.send_message(LOG_GROUP_ID, f"📆 **Günlük Otomatik İstatistik**\n\n{text}")
-    except Exception as e:
-        print(f"🚨 Günlük istatistik gönderilemedi: {e}")
+📊 **Genel Durum**
+├ 🌐 Toplam Grup: `{toplamgrup}`
+├ ⚡️ Aktif Grup Sayısı: `{aktif_grup_sayisi}`
+├ 👥 Toplam Kullanıcı (tüm gruplar): `{toplam_kullanıcı_sayısı}`
+├ 🧑‍🤝‍🧑 Hizmet Verilen Kullanıcılar: `{toplam_kullanıcılar}`
+├ 🔊 Aktif Ses: `{aktifseslisayısı}`
+├ 🎥 Aktif Video: `{aktifvideosayısı}`
+├ 📍 Bu Grup Aktif Sesli mi?: {aktif_sesli_grup_mu_text}
+└ 📍 Bu Grup Aktif Video mu?: {aktif_video_grup_mu_text}
+"""
+        if chat_id != LOG_GROUP_ID:
+            try:
+                await app.send_message(
+                    LOG_GROUP_ID,
+                    logger_text,
+                    disable_web_page_preview=True,
+                )
+                await app.set_chat_title(LOG_GROUP_ID, f"🔊 Aktif Ses - {aktifseslisayısı}")
+            except Exception as e:
+                print(f"Log gönderme veya başlık güncelleme hatası: {e}")
 
-
-# Scheduler başlatıcı (günde 1 kez 12:00'de çalıştırır)
-def start_scheduler():
-    scheduler = AsyncIOScheduler(timezone="Europe/Istanbul")
-    scheduler.add_job(gonder_istatistik_log, trigger="cron", hour=12, minute=0)
-    scheduler.start()
