@@ -69,3 +69,4 @@ async def play_logs(message, streamtype):
                 await app.set_chat_title(LOG_GROUP_ID, f"🔊 Aktif Ses - {aktifseslisayısı}")
             except:
                 pass
+
