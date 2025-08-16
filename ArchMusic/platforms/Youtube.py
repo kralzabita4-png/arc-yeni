@@ -12,11 +12,6 @@ from ArchMusic.utils.database import is_on_off
 from ArchMusic.utils.formatters import time_to_seconds
 
 
-# Downloads klasörünü otomatik oluştur
-if not os.path.exists("downloads"):
-    os.makedirs("downloads")
-
-
 def cookiefile():
     cookie_dir = "cookies"
     if not os.path.exists(cookie_dir) or not os.listdir(cookie_dir):
@@ -64,7 +59,7 @@ class YouTubeAPI:
             if message.entities:
                 for entity in message.entities:
                     if entity.type == MessageEntityType.URL:
-                        text = message.text or message.caption or ""
+                        text = message.text or message.caption
                         offset, length = entity.offset, entity.length
                         break
             elif message.caption_entities:
@@ -86,8 +81,7 @@ class YouTubeAPI:
             thumbnail = result["thumbnails"][0]["url"].split("?")[0]
             vidid = result["id"]
             duration_sec = 0 if duration_min is None else int(time_to_seconds(duration_min))
-            return title, duration_min, duration_sec, thumbnail, vidid
-        return None, None, None, None, None
+        return title, duration_min, duration_sec, thumbnail, vidid
 
     async def title(self, link: str, videoid: Union[bool, str] = None):
         if videoid:
@@ -167,8 +161,7 @@ class YouTubeAPI:
                 "thumb": result["thumbnails"][0]["url"].split("?")[0],
                 "cookiefile": cookiefile(),
             }
-            return track_details, result["id"]
-        return None, None
+        return track_details, result["id"]
 
     async def formats(self, link: str, videoid: Union[bool, str] = None):
         if videoid:
@@ -202,8 +195,6 @@ class YouTubeAPI:
         link = link.split("&")[0]
         a = VideosSearch(link, limit=10)
         result = (await a.next()).get("result")
-        if not result or query_type >= len(result):
-            return None, None, None, None
         title = result[query_type]["title"]
         duration_min = result[query_type]["duration"]
         vidid = result[query_type]["id"]
@@ -237,6 +228,10 @@ class YouTubeAPI:
             }
             x = YoutubeDL({k: v for k, v in ydl_optssx.items() if v is not None})
             info = x.extract_info(link, False)
+            if not info.get("formats"):
+                ydl_optssx["format"] = "best"
+                x = YoutubeDL({k: v for k, v in ydl_optssx.items() if v is not None})
+                info = x.extract_info(link, False)
             xyz = os.path.join("downloads", f"{info['id']}.{info['ext']}")
             if os.path.exists(xyz):
                 return xyz
@@ -246,7 +241,7 @@ class YouTubeAPI:
         def video_dl():
             ydl_optssx = {
                 "cookiefile": cookiefile() if cookiefile() else None,
-                "format": "(best[height<=?720][width<=?1280])",
+                "format": "best[height<=?720][width<=?1280]",
                 "outtmpl": "downloads/%(id)s.%(ext)s",
                 "geo_bypass": True,
                 "nocheckcertificate": True,
@@ -255,6 +250,10 @@ class YouTubeAPI:
             }
             x = YoutubeDL({k: v for k, v in ydl_optssx.items() if v is not None})
             info = x.extract_info(link, False)
+            if not info.get("formats"):
+                ydl_optssx["format"] = "best"
+                x = YoutubeDL({k: v for k, v in ydl_optssx.items() if v is not None})
+                info = x.extract_info(link, False)
             xyz = os.path.join("downloads", f"{info['id']}.{info['ext']}")
             if os.path.exists(xyz):
                 return xyz
@@ -276,6 +275,10 @@ class YouTubeAPI:
                 "merge_output_format": "mp4",
             }
             x = YoutubeDL({k: v for k, v in ydl_optssx.items() if v is not None})
+            info = x.extract_info(link, False)
+            if not info.get("formats"):
+                ydl_optssx["format"] = "best"
+                x = YoutubeDL({k: v for k, v in ydl_optssx.items() if v is not None})
             x.download([link])
 
         def song_audio_dl():
@@ -298,6 +301,10 @@ class YouTubeAPI:
                 ],
             }
             x = YoutubeDL({k: v for k, v in ydl_optssx.items() if v is not None})
+            info = x.extract_info(link, False)
+            if not info.get("formats"):
+                ydl_optssx["format"] = "bestaudio/best"
+                x = YoutubeDL({k: v for k, v in ydl_optssx.items() if v is not None})
             x.download([link])
 
         try:
