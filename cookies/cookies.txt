@@ -2,6 +2,17 @@
 # https://curl.haxx.se/rfc/cookie_spec.html
 # This is a generated file! Do not edit.
 
+.google.com	TRUE	/verify	TRUE	1771673330.38	SNID	ABablneK-e7pfoynoKv2a3-hC8o-yQG06osyA4tAle6PC220Ez_WsI4BWF4m6nFjU1HI3_E9S0uxZ9wu4gmagyL_iFzDT3wlpA
+www.wikipedia.org	FALSE	/	TRUE	1758592659.507	WMF-Last-Access	22-Aug-2025
+.wikipedia.org	TRUE	/	TRUE	1758592659.507	WMF-Last-Access-Global	22-Aug-2025
+.wikipedia.org	TRUE	/	TRUE	0	GeoIP	TR:34:Istanbul:41.01:28.95:v4
+www.wikipedia.org	FALSE	/	TRUE	1755865723.507	NetworkProbeLimit	0.001
+.wikipedia.org	TRUE	/	TRUE	1787363859.507	WMF-Uniq	G94GJZgwreNb_JI2Ehu2VgJXAAAAAFvdXRLnSKMCOa03_tviWnmQsqM3LCUOoa-e
+.google.com	TRUE	/	TRUE	1771414131.012	AEC	AVh_V2jbsgFSKGtbPxicjB9KxA9Y1c9CAY8HurGwEobEIybMMo4PpcK17yg
+.google.com	TRUE	/	TRUE	1771673330.283	NID	525=L63oFg9zJVyAAGLOubTMOBOzpJfm2pmnsHDS_yBmj5d0qUxEKJgAvLjQh6oQ7IsaJ0JRjNvfSijflqbkWJPIe7gOmtgmIIM97E3mO6y03Fa3xFdXbzrYfjOfEsQlU1B13ZQ8HBeh7bbblA4S2PvS64nXukGdu2lsClbEYwMIPtMMjiFtnpTeDfmGj1G97RnA1-JbVf4u482ovIdoOeWUugVJ3VkaunCy5RRLM8prfgTAgiB5Fa8SqHh8ZPb9hfHSzcor
+www.google.com	FALSE	/	FALSE	1755862834	DV	gy3-_acMLposoLzqnEwKQNDhj7YYjRkF0nFRkRRgdc9PAAA
+.mozilla.org	TRUE	/	FALSE	1790422213.982	_ga_B9CY1C9VBC	GS2.1.s1755862183$o1$g1$t1755862213$j30$l0$h0
+.mozilla.org	TRUE	/	FALSE	1790422183.09	_ga	GA1.1.2045948075.1755862183
 .youtube.com	TRUE	/	TRUE	1755864148.918	GPS	1
 .youtube.com	TRUE	/	TRUE	0	YSC	_JSHHnk3gdU
 .youtube.com	TRUE	/	TRUE	1771414348.918	VISITOR_INFO1_LIVE	ZGi-X6Liyvc
