@@ -4,18 +4,32 @@ from ArchMusic.utils.formatters import time_to_seconds
 
 
 def get_progress_bar(percentage):
-    umm = math.floor(percentage / 10)
+    """
+    Yüzdeye göre 10 blokluk ilerleme çubuğu oluşturur.
+    Renk geçişleri doluluk oranına göre kademeli olarak değişir.
+    """
+    umm = min(math.floor(percentage / 10), 10)
+
+    # Renk paleti
     colors = ["🟥", "🟧", "🟨", "🟩", "🟦", "🟪"]
-    color = colors[min(umm // 2, len(colors) - 1)]  # Doldukça renk değişiyor
-    filled = color * umm
-    empty = "⬜" * (10 - umm)
-    return filled + empty
+
+    # Her bloğun renk değerini ayrı ayrı belirle
+    filled_blocks = ""
+    for i in range(umm):
+        color_index = min(math.floor(i / 2), len(colors) - 1)
+        filled_blocks += colors[color_index]
+
+    # Boş bloklar
+    empty_blocks = "⬜" * (10 - umm)
+
+    # Çubuğu ve yüzdeli gösterimi birleştir
+    return f"{percentage:.0f}% {filled_blocks}{empty_blocks}"
 
 
 def stream_markup_timer(_, videoid, chat_id, played, dur):
     played_sec = time_to_seconds(played)
     duration_sec = time_to_seconds(dur)
-    percentage = (played_sec / duration_sec) * 100
+    percentage = (played_sec / duration_sec) * 100 if duration_sec else 0
 
     bar = get_progress_bar(percentage)
 
@@ -29,38 +43,36 @@ def stream_markup_timer(_, videoid, chat_id, played, dur):
         [
             InlineKeyboardButton(text="🏃‍♂️ Sürekli Oynat", callback_data=f"ADMIN Loop|{chat_id}"),
         ],
-        [  # ⏮⏭ Jump Back / Forward
+        [
             InlineKeyboardButton(text="⏪ -10s", callback_data=f"ADMIN 1|{chat_id}"),
             InlineKeyboardButton(text="⏩ +10s", callback_data=f"ADMIN 2|{chat_id}"),
             InlineKeyboardButton(text="⏪ -30s", callback_data=f"ADMIN 3|{chat_id}"),
             InlineKeyboardButton(text="⏩ +30s", callback_data=f"ADMIN 4|{chat_id}"),
         ],
-        [  # ▶️⏸️⏭️⏹️ Controls (gamer-style)
+        [
             InlineKeyboardButton(text="▶️ Başla", callback_data=f"ADMIN Resume|{chat_id}"),
             InlineKeyboardButton(text="⏸ Duraklat", callback_data=f"ADMIN Pause|{chat_id}"),
             InlineKeyboardButton(text="⏭ Atlama", callback_data=f"ADMIN Skip|{chat_id}"),
             InlineKeyboardButton(text="🟥 Bitir", callback_data=f"ADMIN Stop|{chat_id}"),
         ],
-        [  # ❌ Close
+        [
             InlineKeyboardButton(text="❌ Menüyü Kapat", callback_data="close")
         ],
     ]
     return buttons
 
+
 def stream_markup(_, videoid, chat_id):
     buttons = []
     return buttons
-    
-
-            
 
 
 def telegram_markup_timer(_, chat_id, played, dur):
     played_sec = time_to_seconds(played)
     duration_sec = time_to_seconds(dur)
-    percentage = (played_sec / duration_sec) * 100
+    percentage = (played_sec / duration_sec) * 100 if duration_sec else 0
 
-    bar = get_progress_bar(percentage)  # using for getting the bar
+    bar = get_progress_bar(percentage)
 
     buttons = [
         [
@@ -109,9 +121,6 @@ def telegram_markup(_, chat_id):
     return buttons
 
 
-## Search Query Inline
-
-
 def track_markup(_, videoid, user_id, channel, fplay):
     buttons = [
         [
@@ -154,9 +163,6 @@ def playlist_markup(_, videoid, user_id, ptype, channel, fplay):
     return buttons
 
 
-## Live Stream Markup
-
-
 def livestream_markup(_, videoid, user_id, mode, channel, fplay):
     buttons = [
         [
@@ -171,9 +177,6 @@ def livestream_markup(_, videoid, user_id, mode, channel, fplay):
         ],
     ]
     return buttons
-
-
-## Slider Query Markup
 
 
 def slider_markup(_, videoid, user_id, query, query_type, channel, fplay):
