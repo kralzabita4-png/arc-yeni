@@ -36,7 +36,7 @@ def stream_markup_timer(_, videoid, chat_id, played, dur):
 
     buttons = [
         # Başlık
-        [InlineKeyboardButton(text="DESTEK𝗋", url="https://t.me/caresizliksesi"),
+        [InlineKeyboardButton(text="DESTEK", url="https://t.me/caresizliksesi"),
         ],
 
         # Süre barı
@@ -52,7 +52,7 @@ def stream_markup_timer(_, videoid, chat_id, played, dur):
 
         # Alt satır
         [
-            InlineKeyboardButton(text="✅ Listeye Ekle", callback_data=f"add_playlist|{chat_id}"),
+            InlineKeyboardButton(text=_["PL_B_2"], callback_data=f"add_playlist|{chat_id}"),
             InlineKeyboardButton(text="🔮 Kontrol Paneli", callback_data=f"PanelMarkup None|{chat_id}"),
         ],
     ]
