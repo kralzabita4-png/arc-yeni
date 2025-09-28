@@ -1,3 +1,13 @@
+#
+# Copyright (C) 2021-2023 by ArchBots@Github, < https://github.com/ArchBots >.
+#
+# This file is part of < https://github.com/ArchBots/ArchMusic > project,
+# and is released under the "GNU v3.0 License Agreement".
+# Please see < https://github.com/ArchBots/ArchMusic/blob/master/LICENSE >
+#
+# All rights reserved.
+#
+
 import os
 from random import randint
 from typing import Union
@@ -8,91 +18,17 @@ import config
 from ArchMusic import Carbon, YouTube, app
 from ArchMusic.core.call import ArchMusic
 from ArchMusic.misc import db
-from ArchMusic.utils.database import (
-    add_active_chat,
-    add_active_video_chat,
-    is_active_chat,
-    is_video_allowed,
-    music_on,
-)
+from ArchMusic.utils.database import (add_active_chat,
+                                       add_active_video_chat,
+                                       is_active_chat,
+                                       is_video_allowed, music_on)
 from ArchMusic.utils.exceptions import AssistantErr
-from ArchMusic.utils.inline.play import stream_markup, telegram_markup
+from ArchMusic.utils.inline.play import (stream_markup,
+                                          telegram_markup)
 from ArchMusic.utils.inline.playlist import close_markup
 from ArchMusic.utils.pastebin import ArchMusicbin
 from ArchMusic.utils.stream.queue import put_queue, put_queue_index
 
-
-async def send_stream_message(_, chat_id, text):
-    """Mesaj gönderme yardımcı fonksiyonu."""
-    return await app.send_message(chat_id=chat_id, text=text)
-
-
-async def handle_stream_entry(
-    _,
-    chat_id,
-    original_chat_id,
-    user_name,
-    file_path,
-    title,
-    duration_min,
-    user_id,
-    source,
-    video=None,
-    vidid=None,
-    forceplay=None,
-):
-    """Kuyruğa ekleme ve mesaj gönderme fonksiyonu."""
-    status = True if video else None
-    is_active = await is_active_chat(chat_id)
-
-    if is_active:
-        await put_queue(
-            chat_id,
-            original_chat_id,
-            file_path if vidid is None else f"vid_{vidid}",
-            title,
-            duration_min,
-            user_name,
-            vidid or source,
-            user_id,
-            "video" if video else "audio",
-        )
-        position = len(db.get(chat_id, [])) - 1
-        await send_stream_message(
-            _, chat_id=original_chat_id,
-            text=_["queue_4"].format(position, title, duration_min, user_name)
-        )
-    else:
-        if not forceplay:
-            db[chat_id] = []
-        await ArchMusic.join_call(chat_id, original_chat_id, file_path, video=status)
-        await put_queue(
-            chat_id,
-            original_chat_id,
-            file_path if vidid is None else f"vid_{vidid}",
-            title,
-            duration_min,
-            user_name,
-            vidid or source,
-            user_id,
-            "video" if video else "audio",
-            forceplay=forceplay,
-        )
-
-        if source == "telegram" and video:
-            await add_active_video_chat(chat_id)
-
-        info_link = f"https://t.me/{app.username}?start=info_{vidid}" if vidid else ""
-        if source in ["youtube", "live", "playlist"]:
-            message_text = _["stream_1"].format(title, info_link, duration_min, user_name)
-        elif source == "soundcloud":
-            message_text = _["stream_3"].format(title, duration_min, user_name)
-        else:
-            message_text = _["stream_4"].format(title, info_link or file_path, duration_min, user_name)
-
-        run = await send_stream_message(_, chat_id=original_chat_id, text=message_text)
-        db[chat_id][0]["mystic"] = run
-        db[chat_id][0]["markup"] = "tg" if source in ["soundcloud", "telegram", "live", "index"] else "stream"
 
 
 async def stream(
@@ -110,128 +46,384 @@ async def stream(
 ):
     if not result:
         return
-
-    if video and not await is_video_allowed(chat_id):
-        raise AssistantErr(_["play_7"])
-
+    if video:
+        if not await is_video_allowed(chat_id):
+            raise AssistantErr(_["play_7"])
     if forceplay:
         await ArchMusic.force_stop_stream(chat_id)
-
-    def get_position(chat):
-        return len(db.get(chat, [])) - 1
-
-    # ---------------- PLAYLIST ----------------
     if streamtype == "playlist":
         msg = f"{_['playlist_16']}\n\n"
         count = 0
         for search in result:
-            if count >= config.PLAYLIST_FETCH_LIMIT:
-                break
+            if int(count) == config.PLAYLIST_FETCH_LIMIT:
+                continue
             try:
-                title, duration_min, duration_sec, thumbnail, vidid = await YouTube.details(
+                (
+                    title,
+                    duration_min,
+                    duration_sec,
+                    thumbnail,
+                    vidid,
+                ) = await YouTube.details(
                     search, False if spotify else True
                 )
-            except Exception:
+            except:
                 continue
-
-            if duration_min is None or duration_sec > config.DURATION_LIMIT:
+            if str(duration_min) == "None":
                 continue
-
-            file_path, direct = None, False
-            if not await is_active_chat(chat_id):
+            if duration_sec > config.DURATION_LIMIT:
+                continue
+            if await is_active_chat(chat_id):
+                await put_queue(
+                    chat_id,
+                    original_chat_id,
+                    f"vid_{vidid}",
+                    title,
+                    duration_min,
+                    user_name,
+                    vidid,
+                    user_id,
+                    "video" if video else "audio",
+                )
+                position = len(db.get(chat_id)) - 1
+                count += 1
+                msg += f"{count}- {title[:70]}\n"
+                msg += f"{_['playlist_17']} {position}\n\n"
+            else:
+                if not forceplay:
+                    db[chat_id] = []
+                status = True if video else None
                 try:
                     file_path, direct = await YouTube.download(
-                        vidid, mystic, video=True if video else None, videoid=True
+                        vidid, mystic, video=status, videoid=True
                     )
-                except Exception:
-                    continue
-
-            await handle_stream_entry(
-                _, chat_id, original_chat_id, user_name,
-                file_path if file_path else f"vid_{vidid}",
-                title,
-                duration_min,
-                user_id,
-                source="playlist",
-                video=video,
-                vidid=vidid,
-                forceplay=forceplay,
-            )
-
-            count += 1
-            msg += f"{count}- {title[:70]}\n"
-            msg += f"{_['playlist_17']} {get_position(chat_id)}\n\n"
-
+                except:
+                    raise AssistantErr(_["play_16"])
+                await ArchMusic.join_call(
+                    chat_id, original_chat_id, file_path, video=status
+                )
+                await put_queue(
+                    chat_id,
+                    original_chat_id,
+                    file_path if direct else f"vid_{vidid}",
+                    title,
+                    duration_min,
+                    user_name,
+                    vidid,
+                    user_id,
+                    "video" if video else "audio",
+                    forceplay=forceplay,
+                )
+                img = None
+                button = stream_markup(_, vidid, chat_id)
+                run = await app.send_message(
+                original_chat_id,
+                text=_["stream_1"].format(
+                    title,
+                    f"https://t.me/{app.username}?start=info_{vidid}",
+                    duration_min,
+                    user_name
+                ),
+                )
+                db[chat_id][0]["mystic"] = run
+                db[chat_id][0]["markup"] = "stream"
         if count == 0:
             return
-        link = await ArchMusicbin(msg)
-        car = os.linesep.join(msg.split(os.linesep)[:17]) if msg.count("\n") >= 17 else msg
-        await Carbon.generate(car, randint(100, 10000000))
-        upl = close_markup(_)
-        await send_stream_message(
-            _, chat_id=original_chat_id,
-            text=_["playlist_18"].format(link, get_position(chat_id)),
-        )
-        return
-
-    # ---------------- YOUTUBE, SOUNDCLOUD, TELEGRAM, LIVE, INDEX ----------------
-    if streamtype in ["youtube", "soundcloud", "telegram", "live", "index"]:
-        if streamtype == "youtube":
-            vidid = result.get("vidid")
-            title = (result.get("title") or "").title()
-            duration_min = result.get("duration_min")
-            try:
-                file_path, direct = await YouTube.download(vidid, mystic, videoid=True, video=video)
-            except Exception:
-                raise AssistantErr(_["play_16"])
-            await handle_stream_entry(
-                _, chat_id, original_chat_id, user_name,
-                file_path, title, duration_min, user_id,
-                source="youtube", video=video, vidid=vidid, forceplay=forceplay
+        else:
+            link = await ArchMusicbin(msg)
+            lines = msg.count("\n")
+            if lines >= 17:
+                car = os.linesep.join(msg.split(os.linesep)[:17])
+            else:
+                car = msg
+            carbon = await Carbon.generate(
+                car, randint(100, 10000000)
             )
-
-        elif streamtype == "soundcloud":
-            file_path = result.get("filepath")
-            title = result.get("title")
-            duration_min = result.get("duration_min")
-            await handle_stream_entry(
-                _, chat_id, original_chat_id, user_name,
-                file_path, title, duration_min, user_id,
-                source="soundcloud", video=None, forceplay=forceplay
+            upl = close_markup(_)
+            return await app.send_message(
+                original_chat_id,
+                text=_["playlist_18"].format(link, position),
+                reply_markup=upl,
             )
-
-        elif streamtype == "telegram":
-            file_path = result.get("path")
-            title = (result.get("title") or "").title()
-            duration_min = result.get("dur")
-            await handle_stream_entry(
-                _, chat_id, original_chat_id, user_name,
-                file_path, title, duration_min, user_id,
-                source="telegram", video=video, forceplay=forceplay
+    elif streamtype == "youtube":
+        link = result["link"]
+        vidid = result["vidid"]
+        title = (result["title"]).title()
+        duration_min = result["duration_min"]
+        status = True if video else None
+        try:
+            file_path, direct = await YouTube.download(
+                vidid, mystic, videoid=True, video=status
             )
-
-        elif streamtype == "live":
-            link = result.get("link")
-            vidid = result.get("vidid")
-            title = (result.get("title") or "").title()
-            duration_min = "Live Track"
+        except:
+            raise AssistantErr(_["play_16"])
+        if await is_active_chat(chat_id):
+            await put_queue(
+                chat_id,
+                original_chat_id,
+                file_path if direct else f"vid_{vidid}",
+                title,
+                duration_min,
+                user_name,
+                vidid,
+                user_id,
+                "video" if video else "audio",
+            )
+            position = len(db.get(chat_id)) - 1
+            await app.send_message(
+                original_chat_id,
+                _["queue_4"].format(
+                    position, title, duration_min, user_name
+                ),
+            )
+        else:
+            if not forceplay:
+                db[chat_id] = []
+            await ArchMusic.join_call(
+                chat_id, original_chat_id, file_path, video=status
+            )
+            await put_queue(
+                chat_id,
+                original_chat_id,
+                file_path if direct else f"vid_{vidid}",
+                title,
+                duration_min,
+                user_name,
+                vidid,
+                user_id,
+                "video" if video else "audio",
+                forceplay=forceplay,
+            )
+            img = None
+            button = stream_markup(_, vidid, chat_id)
+            run = await app.send_message(
+                original_chat_id,
+                text=_["stream_1"].format(
+                    title,
+                    f"https://t.me/{app.username}?start=info_{vidid}",
+                    duration_min,
+                    user_name
+                ),
+            )
+            db[chat_id][0]["mystic"] = run
+            db[chat_id][0]["markup"] = "stream"
+    elif streamtype == "soundcloud":
+        file_path = result["filepath"]
+        title = result["title"]
+        duration_min = result["duration_min"]
+        if await is_active_chat(chat_id):
+            await put_queue(
+                chat_id,
+                original_chat_id,
+                file_path,
+                title,
+                duration_min,
+                user_name,
+                streamtype,
+                user_id,
+                "audio",
+            )
+            position = len(db.get(chat_id)) - 1
+            await app.send_message(
+                original_chat_id,
+                _["queue_4"].format(
+                    position, title, duration_min, user_name
+                ),
+            )
+        else:
+            if not forceplay:
+                db[chat_id] = []
+            await ArchMusic.join_call(
+                chat_id, original_chat_id, file_path, video=None
+            )
+            await put_queue(
+                chat_id,
+                original_chat_id,
+                file_path,
+                title,
+                duration_min,
+                user_name,
+                streamtype,
+                user_id,
+                "audio",
+                forceplay=forceplay,
+            )
+            button = telegram_markup(_, chat_id)
+            run = await app.send_message(
+                original_chat_id,
+                text=_["stream_3"].format(
+                    title, duration_min, user_name
+                ),
+            )
+            db[chat_id][0]["mystic"] = run
+            db[chat_id][0]["markup"] = "tg"
+    elif streamtype == "telegram":
+        file_path = result["path"]
+        link = result["link"]
+        title = (result["title"]).title()
+        duration_min = result["dur"]
+        status = True if video else None
+        if await is_active_chat(chat_id):
+            await put_queue(
+                chat_id,
+                original_chat_id,
+                file_path,
+                title,
+                duration_min,
+                user_name,
+                streamtype,
+                user_id,
+                "video" if video else "audio",
+            )
+            position = len(db.get(chat_id)) - 1
+            await app.send_message(
+                original_chat_id,
+                _["queue_4"].format(
+                    position, title, duration_min, user_name
+                ),
+            )
+        else:
+            if not forceplay:
+                db[chat_id] = []
+            await ArchMusic.join_call(
+                chat_id, original_chat_id, file_path, video=status
+            )
+            await put_queue(
+                chat_id,
+                original_chat_id,
+                file_path,
+                title,
+                duration_min,
+                user_name,
+                streamtype,
+                user_id,
+                "video" if video else "audio",
+                forceplay=forceplay,
+            )
+            if video:
+                await add_active_video_chat(chat_id)
+            button = telegram_markup(_, chat_id)
+            run = await app.send_message(
+                original_chat_id,
+                text=_["stream_4"].format(
+                    title, link, duration_min, user_name
+                ),
+            )
+            db[chat_id][0]["mystic"] = run
+            db[chat_id][0]["markup"] = "tg"
+    elif streamtype == "live":
+        link = result["link"]
+        vidid = result["vidid"]
+        title = (result["title"]).title()
+        duration_min = "Live Track"
+        status = True if video else None
+        if await is_active_chat(chat_id):
+            await put_queue(
+                chat_id,
+                original_chat_id,
+                f"live_{vidid}",
+                title,
+                duration_min,
+                user_name,
+                vidid,
+                user_id,
+                "video" if video else "audio",
+            )
+            position = len(db.get(chat_id)) - 1
+            await app.send_message(
+                original_chat_id,
+                _["queue_4"].format(
+                    position, title, duration_min, user_name
+                ),
+            )
+        else:
+            if not forceplay:
+                db[chat_id] = []
             n, file_path = await YouTube.video(link)
             if n == 0:
                 raise AssistantErr(_["str_3"])
-            await handle_stream_entry(
-                _, chat_id, original_chat_id, user_name,
-                file_path, title, duration_min, user_id,
-                source="live", video=video, vidid=vidid, forceplay=forceplay
+            await ArchMusic.join_call(
+                chat_id, original_chat_id, file_path, video=status
             )
-
-        elif streamtype == "index":
-            link = result
-            title = "Index or M3u8 Link"
-            duration_min = "URL stream"
-            await handle_stream_entry(
-                _, chat_id, original_chat_id, user_name,
-                link, title, duration_min, user_id,
-                source="index", video=video, forceplay=forceplay
+            await put_queue(
+                chat_id,
+                original_chat_id,
+                f"live_{vidid}",
+                title,
+                duration_min,
+                user_name,
+                vidid,
+                user_id,
+                "video" if video else "audio",
+                forceplay=forceplay,
             )
-            if mystic:
-                await mystic.delete()
+            img = None
+            button = telegram_markup(_, chat_id)
+            run = await app.send_message(
+                original_chat_id,
+                text=_["stream_1"].format(
+                    title,
+                    f"https://t.me/{app.username}?start=info_{vidid}",
+                    duration_min,
+                    user_name
+                ),
+                
+            )
+            db[chat_id][0]["mystic"] = run
+            db[chat_id][0]["markup"] = "tg"
+    elif streamtype == "index":
+        link = result
+        title = "Index or M3u8 Link"
+        duration_min = "URL stream"
+        if await is_active_chat(chat_id):
+            await put_queue_index(
+                chat_id,
+                original_chat_id,
+                "index_url",
+                title,
+                duration_min,
+                user_name,
+                link,
+                "video" if video else "audio",
+            )
+            position = len(db.get(chat_id)) - 1
+            await mystic.edit_text(
+                _["queue_4"].format(
+                    position, title, duration_min, user_name
+                )
+            )
+        else:
+            if not forceplay:
+                db[chat_id] = []
+            await ArchMusic.join_call(
+                chat_id,
+                original_chat_id,
+                link,
+                video=True if video else None,
+            )
+            await put_queue_index(
+                chat_id,
+                original_chat_id,
+                "index_url",
+                title,
+                duration_min,
+                user_name,
+                link,
+                "video" if video else "audio",
+                forceplay=forceplay,
+            )
+            button = telegram_markup(_, chat_id)
+            run = await app.send_message(
+                original_chat_id,
+                text=_["stream_2"].format(
+                    title,
+                    f"https://t.me/{app.username}?start=info_{vidid}",
+                    duration_min,
+                    user_name
+                ),
+                
+            )
+                
+            db[chat_id][0]["mystic"] = run
+            db[chat_id][0]["markup"] = "tg"
+            await mystic.delete()
