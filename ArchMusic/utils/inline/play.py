@@ -6,10 +6,10 @@ from ArchMusic.utils.formatters import time_to_seconds
 def get_progress_bar(percentage):
     """
     Yüzdeye göre 10 blokluk sade ilerleme çubuğu oluşturur.
-    Sadece dolu bloklar gösterilir (▮), boş blok yok.
+    Sadece dolu bloklar gösterilir (), boş blok yok.
     """
     umm = min(math.floor(percentage / 10), 10)
-    filled_blocks = "▮" * umm
+    filled_blocks = "" * umm
     return f"{percentage:.0f}% {filled_blocks}"
 
 
