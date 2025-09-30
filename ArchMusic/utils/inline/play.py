@@ -42,17 +42,11 @@ def stream_markup_timer(_, videoid, chat_id, played, dur):
         # Süre barı
         [InlineKeyboardButton(text=f"{played_time} ❤️ {bar} {total_time}", callback_data="GetTimer")],
 
-        # Kontroller
-        [
-            InlineKeyboardButton(text="▷", callback_data=f"ADMIN Resume|{chat_id}"),
-            InlineKeyboardButton(text="II", callback_data=f"ADMIN Pause|{chat_id}"),
-            InlineKeyboardButton(text="‣‣I", callback_data=f"ADMIN Skip|{chat_id}"),
-            InlineKeyboardButton(text="▢", callback_data=f"ADMIN Stop|{chat_id}"),
-        ],
+        
 
         # Alt satır
         [
-            InlineKeyboardButton(text=_["PL_B_2"], callback_data=f"add_playlist|{chat_id}"),
+    
             InlineKeyboardButton(text="🔮 Kontrol Paneli", callback_data=f"PanelMarkup None|{chat_id}"),
         ],
     ]
