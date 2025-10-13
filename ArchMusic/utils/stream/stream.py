@@ -124,8 +124,7 @@ async def stream(
                     duration_min,
                     user_name
                 ),
-                reply_markup=InlineKeyboardMarkup(button),
-            )
+                )
                 db[chat_id][0]["mystic"] = run
                 db[chat_id][0]["markup"] = "stream"
         if count == 0:
@@ -205,8 +204,7 @@ async def stream(
                     duration_min,
                     user_name
                 ),
-           reply_markup=InlineKeyboardMarkup(button),
-             )
+            )
             db[chat_id][0]["mystic"] = run
             db[chat_id][0]["markup"] = "stream"
     elif streamtype == "soundcloud":
@@ -369,8 +367,6 @@ async def stream(
                     duration_min,
                     user_name
                 ),
-                reply_markup=InlineKeyboardMarkup(button),
-            
             )
             db[chat_id][0]["mystic"] = run
             db[chat_id][0]["markup"] = "tg"
@@ -425,8 +421,7 @@ async def stream(
                     user_name
                 ),
                 
-            reply_markup=InlineKeyboardMarkup(button),
-          )
+            )
             db[chat_id][0]["mystic"] = run
             db[chat_id][0]["markup"] = "tg"
             await mystic.delete()
