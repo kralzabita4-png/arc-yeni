@@ -15,17 +15,17 @@ def format_duration(duration):
 
 # ---------- Stream Markup ----------
 
-def stream_markup_timer(_, chat_id, played, dur):
+ stream_markup_timer(chat_id: int, played: int, dur: int):
+    """Ana müzik paneli (süre + panel butonu)"""
     played_time = format_duration(played)
     total_time = format_duration(dur)
 
     buttons = [
         [InlineKeyboardButton(text=f"{played_time} ❤️ {total_time}", callback_data="GetTimer")],
-        [
-            InlineKeyboardButton(text="🔮 SES Paneli", callback_data=f"PanelMarkup None|{chat_id}"),
-        ],
+        [InlineKeyboardButton(text="🔮 SES Paneli", callback_data=f"PanelMarkup|{chat_id}")],
     ]
-    return buttons
+    return InlineKeyboardMarkup(buttons)
+
 
 
 def stream_markup(_, videoid, chat_id):
