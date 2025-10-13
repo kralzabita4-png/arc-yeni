@@ -66,28 +66,14 @@ def stream_markup_timer(_, videoid, chat_id, played, dur):
             InlineKeyboardButton(
                 text=_["PL_B_3"],
                 callback_data=f"PanelMarkup {videoid}|{chat_id}",
-            ) returneturn buttoreturn
+            )
+        ],
+    ]
+    return buttons
 
 def stream_markup(_, videoid, chat_id):
-    buttons = [
-        [
-            InlineKeyboardButton(text="🔁 TEKRARLA", callback_data=f"ADMIN Loop|{chat_id}"),
-                
-        ],
-            [
-            InlineKeyboardButton(text="⏮ 10",callback_data=f"ADMIN 1|{chat_id}",),
-            InlineKeyboardButton(text="⏭ 10 ",callback_data=f"ADMIN 2|{chat_id}",),
-             InlineKeyboardButton(text="⏮ 30 ",callback_data=f"ADMIN 3|{chat_id}",),
-            InlineKeyboardButton(text="⏭ 30 ",callback_data=f"ADMIN 4|{chat_id}",),
-        ],
-        [
-            InlineKeyboardButton(text="▷", callback_data=f"ADMIN Resume|{chat_id}"),
-            InlineKeyboardButton(text="II", callback_data=f"ADMIN Pause|{chat_id}"),
-            InlineKeyboardButton(text="‣‣I", callback_data=f"ADMIN Skip|{chat_id}"),
-            InlineKeyboardButton(text="▢", callback_data=f"ADMIN Stop|{chat_id}"),
-        ],
-        [InlineKeyboardButton(text=_["CLOSEMENU_BUTTON"], callback_data="close")],
-    ]
+    buttons = []
+        
     return buttons
 
 
