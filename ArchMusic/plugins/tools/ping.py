@@ -1,24 +1,12 @@
-# Copyright (C) 2025 by Alexa_Help @ Github, < https://github.com/TheTeamAlexa >
-# Subscribe On YT < Jankari Ki Duniya >. All rights reserved. © Alexa © Yukki.
-
-"""
-TheTeamAlexa is a project of Telegram bots with variety of purposes.
-Copyright (c) 2021 ~ Present Team Alexa <https://github.com/TheTeamAlexa>
-
-This program is free software: you can redistribute it and can modify
-as you want or you can collabe if you have new ideas.
-"""
-
-
 from datetime import datetime
 
 from pyrogram import filters
 from pyrogram.types import Message
 
-from config import BANNED_USERS, MUSIC_BOT_NAME, PING_IMG_URL
+from config import BANNED_USERS, MUSIC_BOT_NAME
 from strings import get_command
 from ArchMusic import app
-from ArchMusic.core.call import Alexa
+from ArchMusic.core.call import ArchMusic
 from ArchMusic.utils import bot_sys_stats
 from ArchMusic.utils.decorators.language import language
 
@@ -26,17 +14,23 @@ from ArchMusic.utils.decorators.language import language
 PING_COMMAND = get_command("PING_COMMAND")
 
 
-@app.on_message(filters.command(PING_COMMAND) & filters.group & ~BANNED_USERS)
+@app.on_message(
+    filters.command(PING_COMMAND)
+    & filters.group
+    & ~BANNED_USERS
+)
 @language
 async def ping_com(client, message: Message, _):
-    response = await message.reply_photo(
-        photo=PING_IMG_URL,
-        caption=_["ping_1"],
+    response = await message.reply_text(
+        _["ping_1"]
     )
     start = datetime.now()
     pytgping = await ArchMusic.ping()
     UP, CPU, RAM, DISK = await bot_sys_stats()
     resp = (datetime.now() - start).microseconds / 1000
     await response.edit_text(
-        _["ping_2"].format(resp, MUSIC_BOT_NAME, UP, RAM, CPU, DISK, pytgping)
+        _["ping_2"].format(
+            MUSIC_BOT_NAME, resp, UP, DISK, CPU, RAM, pytgping
+        )
     )
+    
