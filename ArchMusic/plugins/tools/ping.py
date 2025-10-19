@@ -17,10 +17,10 @@ from pyrogram.types import Message
 
 from config import BANNED_USERS, MUSIC_BOT_NAME, PING_IMG_URL
 from strings import get_command
-from AlexaMusic import app
-from AlexaMusic.core.call import Alexa
-from AlexaMusic.utils import bot_sys_stats
-from AlexaMusic.utils.decorators.language import language
+from ArchMusic import app
+from ArchMusic.core.call import Alexa
+from ArchMusic.utils import bot_sys_stats
+from ArchMusic.utils.decorators.language import language
 
 ### Commands
 PING_COMMAND = get_command("PING_COMMAND")
