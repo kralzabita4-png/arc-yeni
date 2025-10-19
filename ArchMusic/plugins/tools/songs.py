@@ -1,5 +1,3 @@
-
-
 import os
 import re
 
@@ -7,20 +5,31 @@ import yt_dlp
 from pykeyboard import InlineKeyboard
 from pyrogram import filters
 from pyrogram.enums import ChatAction
-from pyrogram.types import (InlineKeyboardButton,
-                            InlineKeyboardMarkup, InputMediaAudio,
-                            InputMediaVideo, Message)
+from pyrogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    InputMediaAudio,
+    InputMediaVideo,
+    Message,
+)
 
-from config import (BANNED_USERS, SONG_DOWNLOAD_DURATION,
-                    SONG_DOWNLOAD_DURATION_LIMIT)
+from config import (
+    BANNED_USERS,
+    SONG_DOWNLOAD_DURATION,
+    SONG_DOWNLOAD_DURATION_LIMIT,
+)
 from strings import get_command
 from ArchMusic import YouTube, app
 from ArchMusic.utils.decorators.language import language, languageCB
 from ArchMusic.utils.formatters import convert_bytes
 from ArchMusic.utils.inline.song import song_markup
 
+
 # Command
 SONG_COMMAND = get_command("SONG_COMMAND")
+
+# Cookies file path
+COOKIES_PATH = "cookies.txt"
 
 
 @app.on_message(
@@ -28,10 +37,6 @@ SONG_COMMAND = get_command("SONG_COMMAND")
     & filters.group
     & ~BANNED_USERS
 )
-
-# Song Module
-
-
 @app.on_message(
     filters.command(SONG_COMMAND)
     & filters.private
@@ -171,8 +176,6 @@ async def song_helper_cb(client, CallbackQuery, _):
             print(f"Format fetch error: {e}")
             return await CallbackQuery.edit_message_text(_["song_7"])
         keyboard = InlineKeyboard()
-        
-        # done listesi kaldırıldı, tüm filesize olan video formatları kabul ediliyor
         filtered_formats = [x for x in formats_available if x.get("filesize")]
 
         if not filtered_formats:
@@ -205,9 +208,6 @@ async def song_helper_cb(client, CallbackQuery, _):
         )
 
 
-# Downloading Songs Here
-
-
 @app.on_callback_query(
     filters.regex(pattern=r"song_download") & ~BANNED_USERS
 )
@@ -222,14 +222,22 @@ async def song_download_cb(client, CallbackQuery, _):
     stype, format_id, vidid = callback_request.split("|")
     mystic = await CallbackQuery.edit_message_text(_["song_8"])
     yturl = f"https://www.youtube.com/watch?v={vidid}"
-    with yt_dlp.YoutubeDL({"quiet": True}) as ytdl:
+
+    # ✅ Cookies destekli yt_dlp ayarları
+    ytdl_opts = {
+        "quiet": True,
+        "cookiefile": COOKIES_PATH if os.path.exists(COOKIES_PATH) else None,
+    }
+
+    with yt_dlp.YoutubeDL(ytdl_opts) as ytdl:
         x = ytdl.extract_info(yturl, download=False)
+
     title = (x["title"]).title()
-    title = re.sub("\W+", " ", title)
+    title = re.sub(r"\W+", " ", title)
     thumb_image_path = await CallbackQuery.message.download()
     duration = x["duration"]
+
     if stype == "video":
-        thumb_image_path = await CallbackQuery.message.download()
         width = CallbackQuery.message.photo.width
         height = CallbackQuery.message.photo.height
         try:
@@ -239,6 +247,7 @@ async def song_download_cb(client, CallbackQuery, _):
                 songvideo=True,
                 format_id=format_id,
                 title=title,
+                cookies=COOKIES_PATH if os.path.exists(COOKIES_PATH) else None,
             )
         except Exception as e:
             return await mystic.edit_text(_["song_9"].format(e))
@@ -270,6 +279,7 @@ async def song_download_cb(client, CallbackQuery, _):
                 songaudio=True,
                 format_id=format_id,
                 title=title,
+                cookies=COOKIES_PATH if os.path.exists(COOKIES_PATH) else None,
             )
         except Exception as e:
             return await mystic.edit_text(_["song_9"].format(e))
