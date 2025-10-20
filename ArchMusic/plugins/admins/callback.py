@@ -18,17 +18,17 @@ from ArchMusic import YouTube, app
 from ArchMusic.core.call import ArchMusic
 from ArchMusic.misc import SUDOERS, db
 from ArchMusic.utils.database import (is_active_chat,
-                                       is_music_playing, is_muted,
-                                       is_nonadmin_chat, music_off,
-                                       music_on, mute_off, mute_on,
-                                       set_loop)
+                                    is_music_playing, is_muted,
+                                    is_nonadmin_chat, music_off,
+                                    music_on, mute_off, mute_on,
+                                    set_loop)
 from ArchMusic.utils.decorators.language import languageCB
 from ArchMusic.utils.formatters import seconds_to_min
 from ArchMusic.utils.inline.play import (panel_markup_1,
-                                          panel_markup_2,
-                                          panel_markup_3,
-                                          stream_markup,
-                                          telegram_markup)
+                                     panel_markup_2,
+                                     panel_markup_3,
+                                     stream_markup
+                                     )
 from ArchMusic.utils.stream.autoclear import auto_clean
 
 
@@ -258,6 +258,7 @@ async def del_back_playlist(client, CallbackQuery, _):
         user = check[0]["by"]
         streamtype = check[0]["streamtype"]
         videoid = check[0]["vidid"]
+        duration = check[0]["dur"] # <<< DÜZELTME: 'duration' değişkeni eklendi
         status = True if str(streamtype) == "video" else None
         db[chat_id][0]["played"] = 0
         if "live_" in queued:
@@ -274,15 +275,16 @@ async def del_back_playlist(client, CallbackQuery, _):
                 )
             button = telegram_markup(_, chat_id)
             img = None
+            # DÜZELTME: 'reply_markup' .format() dışına alındı
             run = await CallbackQuery.message.reply_text(
-                    text=_["stream_1"].format(
-                      title,
-                        f"https://t.me/{app.username}?start=info_{videoid}",
-                        duration,
-                        user,
-                    ),
-                    
-                )
+                text=_["stream_1"].format(
+                    title,
+                    f"https://t.me/{app.username}?start=info_{videoid}",
+                    duration,
+                    user,
+                ),
+                reply_markup=InlineKeyboardMarkup(stream_markup(_, title, chat_id))
+            )
             db[chat_id][0]["mystic"] = run
             db[chat_id][0]["markup"] = "tg"
             await CallbackQuery.edit_message_text(txt)
@@ -307,15 +309,16 @@ async def del_back_playlist(client, CallbackQuery, _):
                 return await mystic.edit_text(_["call_9"])
             button = stream_markup(_, videoid, chat_id)
             img = None
+            # DÜZELTME: 'reply_markup' .format() dışına alındı
             run = await CallbackQuery.message.reply_text(
-                    text=_["stream_1"].format(
-                      title,
-                        f"https://t.me/{app.username}?start=info_{videoid}",
-                        duration,
-                        user,
-                    ),
-                    
-                )
+                text=_["stream_1"].format(
+                    title,
+                    f"https://t.me/{app.username}?start=info_{videoid}",
+                    duration,
+                    user,
+                ),
+                reply_markup=InlineKeyboardMarkup(stream_markup(_, title, chat_id))
+            )
             db[chat_id][0]["mystic"] = run
             db[chat_id][0]["markup"] = "stream"
             await CallbackQuery.edit_message_text(txt)
@@ -330,15 +333,16 @@ async def del_back_playlist(client, CallbackQuery, _):
                     _["call_9"]
                 )
             button = telegram_markup(_, chat_id)
+            # DÜZELTME: 'reply_markup' .format() dışına alındı
             run = await CallbackQuery.message.reply_text(
-                    text=_["stream_2"].format(
-                      title,
-                        f"https://t.me/{app.username}?start=info_{videoid}",
-                        duration,
-                        user,
-                    ),
-                    
-                )
+                text=_["stream_2"].format(
+                    title,
+                    f"https://t.me/{app.username}?start=info_{videoid}",
+                    duration,
+                    user,
+                ),
+                reply_markup=InlineKeyboardMarkup(stream_markup(_, title, chat_id))
+            )
             db[chat_id][0]["mystic"] = run
             db[chat_id][0]["markup"] = "tg"
             await CallbackQuery.edit_message_text(txt)
@@ -351,35 +355,38 @@ async def del_back_playlist(client, CallbackQuery, _):
                 )
             if videoid == "telegram":
                 button = telegram_markup(_, chat_id)
+                # DÜZELTME: 'reply_markup' .format() dışına alındı
                 run = await CallbackQuery.message.reply_text(
                     text=_["stream_3"].format(
                         title, check[0]["dur"], user
                     ),
-                    
+                    reply_markup=InlineKeyboardMarkup(stream_markup(_, title, chat_id))
                 )
                 db[chat_id][0]["mystic"] = run
                 db[chat_id][0]["markup"] = "tg"
             elif videoid == "soundcloud":
                 button = telegram_markup(_, chat_id)
+                # DÜZELTME: 'reply_markup' .format() dışına alındı
                 run = await CallbackQuery.message.reply_text(
                     text=_["stream_3"].format(
                         title, check[0]["dur"], user
                     ),
-                    
+                    reply_markup=InlineKeyboardMarkup(stream_markup(_, title, chat_id))
                 )
                 db[chat_id][0]["mystic"] = run
                 db[chat_id][0]["markup"] = "tg"
             else:
                 button = stream_markup(_, videoid, chat_id)
                 img = None
+                # DÜZELTME: 'reply_markup' .format() dışına alındı
                 run = await CallbackQuery.message.reply_text(
                     text=_["stream_1"].format(
-                      title,
+                        title,
                         f"https://t.me/{app.username}?start=info_{videoid}",
                         duration,
                         user,
                     ),
-                    
+                    reply_markup=InlineKeyboardMarkup(stream_markup(_, title, chat_id))
                 )
                 db[chat_id][0]["mystic"] = run
                 db[chat_id][0]["markup"] = "stream"
@@ -411,7 +418,7 @@ async def del_back_playlist(client, CallbackQuery, _):
                 bet = seconds_to_min(duration_played)
                 return await CallbackQuery.answer(
                     f"Bot toplam süre aşıldığı için arama yapamıyor.\n\nŞu anda oynanan** {bet}** dakika/**{duration}** dakika",
-                  show_alert=True, 
+                    show_alert=True,
                 )
             to_seek = duration_played - duration_to_skip + 1
         else:
@@ -421,8 +428,8 @@ async def del_back_playlist(client, CallbackQuery, _):
             ) <= 10:
                 bet = seconds_to_min(duration_played)
                 return await CallbackQuery.answer(
-                    f"Bot toplam süre aşıldığı için arama yapamıyor.\n\nŞu anda oynanan** {bet}** dakika/**{duration}** dakika", 
-                  show_alert=True,
+                    f"Bot toplam süre aşıldığı için arama yapamıyor.\n\nŞu anda oynanan** {bet}** dakika/**{duration}** dakika",
+                    show_alert=True,
                 )
             to_seek = duration_played + duration_to_skip + 1
         await CallbackQuery.answer()
