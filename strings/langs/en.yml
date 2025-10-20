@@ -258,9 +258,9 @@ S_B_8 : "[📚]»Komutlar Menüsü"
         
 #Help 
 H_B_1 :  "[🏷️]»ᴇᴛɪᴋᴇᴛ ᴋᴏᴍᴜᴛʟᴀʀɪ"
-H_B_2 :  "[🎮]»ᴏʏᴜɴ KOMUTLARI"
-H_B_3 :  "[🎵]»OYNAT KOMUTLARİ"
-H_B_4 : "[🥏]»SUDO KOMUTLARİ"
+H_B_2 :  "[🎵]»OYNAT KOMUTLARİ"
+H_B_3 :  "[🥏]»SUDO KOMUTLARİ"
+
 
 
 #PlayMode
