@@ -7,7 +7,7 @@
 # All rights reserved.
 
 from pyrogram import filters
-from pyrogram.types import Message
+from pyrogram.types import Message, InlineKeyboardMarkup  # <-- DÜZELTME: InlineKeyboardMarkup eklendi
 
 import config
 from config import BANNED_USERS
@@ -15,7 +15,7 @@ from strings import get_command
 from ArchMusic import YouTube, app
 from ArchMusic.core.call import ArchMusic
 from ArchMusic.misc import db
-from ArchMusic.utils.database import get_loop
+from ArchMusic.utils.database import get_loop, is_active_chat  # <-- DÜZELTME: is_active_chat eklendi
 from ArchMusic.utils.decorators import AdminRightsCheck
 from ArchMusic.utils.inline.play import stream_markup
 from ArchMusic.utils.stream.autoclear import auto_clean
@@ -32,6 +32,10 @@ SKIP_COMMAND = get_command("SKIP_COMMAND")
 )
 @AdminRightsCheck
 async def skip(cli, message: Message, _, chat_id):
+    # DÜZELTME 1: Botun aktif olup olmadığını kontrol et (NoAudioSourceFound hatası için)
+    if not await is_active_chat(chat_id):
+        return await message.reply_text(_["general_6"])  # "Bot şu anda çalmıyor" gibi bir mesaj
+
     if not len(message.command) < 2:
         loop = await get_loop(chat_id)
         if loop != 0:
@@ -98,12 +102,26 @@ async def skip(cli, message: Message, _, chat_id):
             except:
                 return
 
-    queued = check[0]["file"]
-    title = (check[0]["title"]).title()
-    user = check[0]["by"]
-    streamtype = check[0]["streamtype"]
-    videoid = check[0]["vidid"]
-    status = True if str(streamtype) == "video" else None
+    # DÜZELTME 2: Sıradaki şarkı verisini okurken hata ayıklama (TypeError için)
+    try:
+        queued = check[0]["file"]
+        title = (check[0]["title"]).title()
+        user = check[0]["by"]
+        streamtype = check[0]["streamtype"]
+        videoid = check[0]["vidid"]
+        status = True if str(streamtype) == "video" else None
+    except TypeError:
+        await message.reply_text(_["misc_3"]) # "Sırada bir hata oluştu, kuyruk temizleniyor."
+        try:
+            return await ArchMusic.stop_stream(chat_id)
+        except:
+            return
+    except Exception as e:
+        await message.reply_text(f"Sırada bilinmeyen bir hata oluştu: {e}\nKuyruk temizleniyor.")
+        try:
+            return await ArchMusic.stop_stream(chat_id)
+        except:
+            return
 
     if "live_" in queued:
         n, link = await YouTube.video(videoid, True)
@@ -119,8 +137,8 @@ async def skip(cli, message: Message, _, chat_id):
                 f"https://t.me/{app.username}?start=info_{videoid}",
                 check[0]["dur"],
                 user,
+            ),
             reply_markup=InlineKeyboardMarkup(stream_markup(_, title, chat_id))
-            )
         )
         db[chat_id][0]["mystic"] = run
         db[chat_id][0]["markup"] = None
@@ -146,8 +164,8 @@ async def skip(cli, message: Message, _, chat_id):
                 f"https://t.me/{app.username}?start=info_{videoid}",
                 check[0]["dur"],
                 user,
+            ),
             reply_markup=InlineKeyboardMarkup(stream_markup(_, title, chat_id))
-            )
         )
         db[chat_id][0]["mystic"] = run
         db[chat_id][0]["markup"] = None
@@ -164,8 +182,8 @@ async def skip(cli, message: Message, _, chat_id):
                 f"https://t.me/{app.username}?start=info_{videoid}",
                 check[0]["dur"],
                 user,
+            ),
             reply_markup=InlineKeyboardMarkup(stream_markup(_, title, chat_id))
-            )
         )
         db[chat_id][0]["mystic"] = run
         db[chat_id][0]["markup"] = None
@@ -181,8 +199,8 @@ async def skip(cli, message: Message, _, chat_id):
                 f"https://t.me/{app.username}?start=info_{videoid}",
                 check[0]["dur"],
                 user,
+            ),
             reply_markup=InlineKeyboardMarkup(stream_markup(_, title, chat_id))
-            )
         )
         db[chat_id][0]["mystic"] = run
         db[chat_id][0]["markup"] = None
