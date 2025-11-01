@@ -383,17 +383,21 @@ def telegram_markup_timer(_, chat_id, played, dur, videoid):
 
 
 def stream_markup(_, videoid, chat_id, played="00:00", total="03:00"):
-    # 🔹 Basit ilerleme çubuğu
-    parts_p = list(map(int, played.split(":")))
-    parts_t = list(map(int, total.split(":")))
-    played_sec = parts_p[0] * 60 + parts_p[1] if len(parts_p) == 2 else 0
-    total_sec = parts_t[0] * 60 + parts_t[1] if len(parts_t) == 2 else 1
+    # Süreleri saniyeye çevir
+    def time_to_sec(t):
+        parts = list(map(int, t.split(":")))
+        return parts[0] * 60 + parts[1] if len(parts) == 2 else 0
+
+    played_sec = time_to_sec(played)
+    total_sec = time_to_sec(total) or 1
     ratio = played_sec / total_sec
     pos = int(ratio * 10)
+
+    # 🔹 Mavi bar hesaplama
     bar = "".join("🔹" if i == pos else "⠂" for i in range(10))
     bar_text = f"{played}  {bar}  {total}"
 
-    # 🔘 Butonlar
+    # 🔘 Butonlar (sadece bu satır)
     buttons = [
         [InlineKeyboardButton(text=bar_text, callback_data="nonclickable")],
         [
@@ -408,7 +412,6 @@ def stream_markup(_, videoid, chat_id, played="00:00", total="03:00"):
         ],
     ]
     return buttons
-
 
 def telegram_markup(_, chat_id):
     buttons = [
