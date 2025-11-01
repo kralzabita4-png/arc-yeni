@@ -36,7 +36,7 @@ def stream_markup(_, videoid, chat_id):
             InlineKeyboardButton("❌ Kapat", callback_data=f"forceclose {videoid}|{chat_id}")
         ],
     ]
-
+   Return buttons
 
 # ───────────────────────────────
 # 🧩 Track Seçimi
@@ -59,7 +59,7 @@ def track_markup(_, videoid, user_id, channel, fplay):
             InlineKeyboardButton("❌ Kapat", callback_data=f"forceclose {videoid}|{user_id}")
         ],
     ]
-
+  Return buttons
 
 # ───────────────────────────────
 # 📜 Playlist Menüsü
@@ -83,7 +83,7 @@ def playlist_markup(_, videoid, user_id, ptype, channel, fplay):
         ],
     ]
 
-
+Return buttons
 # ───────────────────────────────
 # 📺 Canlı Yayın Menüsü
 # ───────────────────────────────
@@ -104,7 +104,7 @@ def livestream_markup(_, videoid, user_id, mode, channel, fplay):
         ],
     ]
 
-
+Return buttons
 # ───────────────────────────────
 # ⚙️ Kontrol Paneli (Sayfa 1)
 # ───────────────────────────────
@@ -125,7 +125,7 @@ def panel_markup_1(_, videoid, chat_id):
             InlineKeyboardButton("❌ Kapat", callback_data=f"forceclose {videoid}|{chat_id}")
         ],
     ]
-
+Return buttons
 
 # ───────────────────────────────
 # ⚙️ Kontrol Paneli (Sayfa 2)
@@ -148,7 +148,7 @@ def panel_markup_2(_, videoid, chat_id):
         ],
     ]
 
-
+Return buttons
 # ───────────────────────────────
 # ⚙️ Kontrol Paneli (Sayfa 3)
 # ───────────────────────────────
@@ -169,3 +169,4 @@ def panel_markup_3(_, videoid, chat_id):
             InlineKeyboardButton("❌ Kapat", callback_data=f"forceclose {videoid}|{chat_id}")
         ],
     ]
+Return buttons
