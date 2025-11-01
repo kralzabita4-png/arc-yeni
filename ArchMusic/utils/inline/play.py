@@ -35,7 +35,6 @@ def progress_bar(played, total):
 # 🎧 Stream oynatma (YouTube vb.)
 # ───────────────────────────────
 def stream_markup_timer(_, videoid, chat_id, played, dur):
-    def stream_markup_timer(_, videoid, chat_id, played, dur):
     buttons = [
         [InlineKeyboardButton(text=progress_bar(played, dur), callback_data="nonclickable")],
         [
@@ -50,13 +49,13 @@ def stream_markup_timer(_, videoid, chat_id, played, dur):
             InlineKeyboardButton("🩵 𝗞𝗮𝗻𝗮𝗹", url="https://t.me/maviduyuru"),
         ],
     ]
-    return buttons  # ⚠️ Bu satır mutlaka fonksiyon BLOĞU içinde olmalı (girintili)
+    return buttons
+
 
 # ───────────────────────────────
 # 🌀 Telegram stream oynatma
 # ───────────────────────────────
 def telegram_markup_timer(_, chat_id, played, dur, videoid):
-    def stream_markup_timer(_, videoid, chat_id, played, dur):
     buttons = [
         [InlineKeyboardButton(text=progress_bar(played, dur), callback_data="nonclickable")],
         [
@@ -71,9 +70,7 @@ def telegram_markup_timer(_, chat_id, played, dur, videoid):
             InlineKeyboardButton("🩵 𝗞𝗮𝗻𝗮𝗹", url="https://t.me/maviduyuru"),
         ],
     ]
-    return buttons  # ⚠️ Bu satır mutlaka fonksiyon BLOĞU içinde olmalı (girintili)
-
-
+    return buttons
 # ───────────────────────────────
 # 🎛️ Standart kontrol menüsü
 # ───────────────────────────────
