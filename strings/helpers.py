@@ -80,7 +80,7 @@ HELP_3 = """<u>🎮 EĞLENCE & OYUN KOMUTLARI 🎮</u>
 🌸 Eğlenmek için tek komut yeter!
 """
 
-HELP_4 = """<u>🎮 Etikt KOMUTLARI 🎮</u>
+HELP_5 = """<u>🎮 Etikt KOMUTLARI 🎮</u>
 
 🤖 /chatbot - Yapay zeka çalıştırır
 
