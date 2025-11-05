@@ -85,6 +85,7 @@ async def helper_cb(client, callback: types.CallbackQuery, _):
         "hb1": helpers.HELP_1,
         "hb2": helpers.HELP_2,
         "hb3": helpers.HELP_3,
+        "hb4": helpers.HELP_4,
         
         
     }
