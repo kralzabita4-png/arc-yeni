@@ -47,7 +47,7 @@ SONG_DOWNLOAD_DURATION = int(
 
 # You'll need a Private Group ID for this.
 
-LOG_GROUP_ID = int(getenv("LOG_GROUP_ID","-1002474970241"))
+LOG_GROUP_ID = int(getenv("LOG_GROUP_ID","-1003275098745"))
 
 # A name for your Music bot.
 
@@ -57,7 +57,7 @@ MUSIC_BOT_NAME = getenv("MUSIC_BOT_NAME","")
 
 OWNER_ID = list(
 
-    map(int, getenv("OWNER_ID", "").split())
+    map(int, getenv("OWNER_ID", "7674362519").split())
 
 )  # Input type must be interger
 
@@ -88,7 +88,7 @@ GIT_TOKEN = getenv("GIT_TOKEN", None)
 
 SUPPORT_CHANNEL = getenv(
 
-    "SUPPORT_CHANNEL", "") # Example:- https://t.me/ArchBots
+    "SUPPORT_CHANNEL", "https://t.me/hebunbots21") # Example:- https://t.me/ArchBots
 
 SUPPORT_GROUP = getenv(
 
