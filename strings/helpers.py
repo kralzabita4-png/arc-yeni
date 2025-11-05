@@ -1,5 +1,4 @@
 
-
 HELP_1 = """<b>🎵 MÜZİK KOMUTLARI 🎵</b>
 
 ⏸️ /duraklat       - Müziği duraklatır
@@ -79,7 +78,7 @@ HELP_3 = """<u>🎮 EĞLENCE & OYUN KOMUTLARI 🎮</u>
 
 HELP_4 = """<u>🎮 Etikt KOMUTLARI 🎮</u>
 
-🤖 /chatbot - Yapay zeka çalıştırır
+🤖 /chatmode - Yapay zeka çalıştırır
 
 👥 /tag    - Grubunuzdaki tüm üyeleri isimleriyle etiketler
 🛡️ /atag   - Grubunuzdaki tüm yöneticileri etiketler
