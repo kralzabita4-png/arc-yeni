@@ -1,7 +1,4 @@
-# ===============================================
-# 🌌 Kumsal Bots - Mavi Duyuru Yardım Metinleri
-# Minimal, modern, sade ve narin yapı
-# ===============================================
+
 
 HELP_1 = """<b>🎵 MÜZİK KOMUTLARI 🎵</b>
 
@@ -59,33 +56,25 @@ HELP_2 = """🥏 <u>BOT KOMUTLARI</u>
 ♻️ /ungban            - Kullanıcıyı yasaktan çıkarır ([Kullanıcı adı veya reply])
 📄 /gbannedusers      - Yasaklı kullanıcı listesini gösterir
 """
-
-HELP_3 = """<u>🎮 EĞLENCE & OYUN KOMUTLARI 🎮</u>
-
-🎯 /oyun - Oyun menüsünü açar
-💬 /dogruluk - Rastgele bir doğruluk sorusu gönderir
-🔥 /cesaret - Rastgele bir cesaret görevi gönderir
-🎭 /kelime - Kelime tahmin oyununu başlatır
-🧩 /bitir - Oyunu sonlandırır
-
-🎰 /zar - Rastgele bir zar atar
-🪙 /para - Yazı tura atar
-🎲 /sayi - 1 ile 100 arasında rastgele bir sayı üretir
-📜 /atasözü - Rastgele bir atasözü gönderir
-😂 /komik - Rastgele komik bir cümle gönderir
-💌 /ask - Aşk oranını hesaplar (Örnek: /ask @kullanici)
-📸 /meme - Rastgele bir meme resmi gönderir
-🎵 /bulmaca - Rastgele bir müzik bulmacası gönderir
-
-🌸 Eğlenmek için tek komut yeter!
-"""
-
-HELP_4 = """<u>🎮 Etikt KOMUTLARI 🎮</u>
-
+HELP_3 = """<u>💠 ETİKET KOMUTLARI 💠</u>
 🤖 /chatbot - Yapay zeka çalıştırır
 
 👥 /tag    - Grubunuzdaki tüm üyeleri isimleriyle etiketler
 🛡️ /atag   - Grubunuzdaki tüm yöneticileri etiketler
 🏳️ /btag   - Grubunuzdaki tüm üyeleri bayraklarla etiketler
 🎭 /ctag   - Grubunuzdaki tüm üyeleri karakter isimleri ile etiketler
+😊 /etag   - Grubunuzdaki tüm üyeleri emojiler ile etiketler
+🖼️ /ftag   - Grubunuzdaki tüm üyeleri seçtiğiniz fotoğraf ile etiketler
+🃏 /otag   - Grubunuzdaki tüm üyeleri iskambil kartları ile etiketler
+💌 /ptag   - Grubunuzdaki tüm üyeleri güzel sözlerle etiketler
+🌈 /rtag   - Grubunuzdaki tüm üyeleri rastgele renklerle etiketler
+📌 /stag   - Seçtiğiniz birisini seçtiğiniz sticker ile etiketler (Gizli Etiket 😶‍🌫️)
+🎯 /itag   - Seçtiğiniz birisini rastgele bir emoji ile etiketleyin
+🎲 /dice     - Rastgele bir zar atın
+🪙 /coin     - Rastgele bir para atın
+👋 /slap     - Birini tokatlayın
+🎲 /roll     - Rastgele bir sayı atın
+🤣 /joke     - Rastgele bir şaka gönderin
+📜 /soz      - Rastgele bir söz gönderin
+📢 /tts      - Bir metni sesli olarak okutun
 """
