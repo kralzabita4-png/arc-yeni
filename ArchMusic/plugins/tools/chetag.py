@@ -19,7 +19,10 @@ from pyrogram.types import (
 )
 from ArchMusic import app
 from config import LOG_GROUP_ID, OWNER_ID
+# 'kumsal' içinden gerekli listeleri içe aktardığınızı varsayıyorum
+# Örnek: from ArchMusic.plugins.tools.kumsal import Aynur, slm, ..., commandList, D_LİST, C_LİST, ...
 from ArchMusic.plugins.tools.kumsal import *
+
 
 kumsal_tagger = {}
 users = []
@@ -88,24 +91,49 @@ Sebep : {message.text}
     total_tagged = 0
     usrtxt = ""
     
-    async for member in app.get_chat_members(message.chat.id):
-        user = member.user
-        if user.is_bot:
-            skipped_bots += 1
-            continue
-        if user.is_deleted:
-            skipped_deleted += 1
-            continue
-        usrnum += 1
-        total_tagged += 1
-        usrtxt += f"• [{user.first_name}](tg://user?id={user.id})"
-        if message.chat.id not in kumsal_tagger or kumsal_tagger[message.chat.id] != start_msg.id:
-            return
-        if usrnum == nums:
-            await app.send_message(message.chat.id, f" **{msg_content}**\n\n{usrtxt}")
-            usrnum = 0
-            usrtxt = ""
-            await asyncio.sleep(5)
+    try:
+        async for member in app.get_chat_members(message.chat.id):
+            user = member.user
+            if user.is_bot:
+                skipped_bots += 1
+                continue
+            if user.is_deleted:
+                skipped_deleted += 1
+                continue
+                
+            # --- ANA DURDURMA KONTROLÜ ---
+            # Her üyede, durdurma komutu gelmiş mi diye kontrol et
+            if message.chat.id not in kumsal_tagger or kumsal_tagger[message.chat.id] != start_msg.id:
+                await app.send_message(message.chat.id, "Etiketleme işlemi başka bir komutla veya /durdur ile iptal edildi.")
+                return
+            # --- KONTROL BİTTİ ---
+
+            usrnum += 1
+            total_tagged += 1
+            usrtxt += f"• [{user.first_name}](tg://user?id={user.id})"
+            
+            if usrnum == nums:
+                await app.send_message(message.chat.id, f" **{msg_content}**\n\n{usrtxt}")
+                usrnum = 0
+                usrtxt = ""
+                
+                # --- DUYARLI BEKLEME (YENİ) ---
+                # 5 saniye bekle, ama her saniye durdurma komutunu kontrol et
+                for _ in range(5):
+                    await asyncio.sleep(1)
+                    if message.chat.id not in kumsal_tagger or kumsal_tagger[message.chat.id] != start_msg.id:
+                        # Durdurma komutu geldiyse, bekleme döngüsünden çık
+                        # Ana döngüdeki kontrol zaten işlemi bitirecek
+                        break
+                # --- BEKLEME BİTTİ ---
+                
+    except Exception as e:
+        print(f"[TAG ERROR]: {e}")
+    finally:
+        # --- DURUM TEMİZLEME (BAŞARILI BİTİŞ) ---
+        if message.chat.id in kumsal_tagger and kumsal_tagger[message.chat.id] == start_msg.id:
+            del kumsal_tagger[message.chat.id]
+        # --- TEMİZLEME BİTTİ ---
 
     await app.send_message(message.chat.id, f"""
 **Üye etiketleme işlemi tamamlandı** ✅
@@ -181,24 +209,48 @@ Sebep : {message.text}
     total_tagged = 0
     usrtxt = ""
     
-    async for member in app.get_chat_members(message.chat.id):
-        user = member.user
-        if user.is_bot:
-            skipped_bots += 1
-            continue
-        if user.is_deleted:
-            skipped_deleted += 1
-            continue
-        usrnum += 1
-        total_tagged += 1
-        usrtxt += f"• [{user.first_name}](tg://user?id={user.id})\n"
-        if message.chat.id not in kumsal_tagger or kumsal_tagger[message.chat.id] != start_msg.id:
-            return
-        if usrnum == nums:
-            await app.send_message(message.chat.id, f" **{msg_content}**\n\n{usrtxt}")
-            usrnum = 0
-            usrtxt = ""
-            await asyncio.sleep(5)
+    try:
+        async for member in app.get_chat_members(message.chat.id):
+            user = member.user
+            if user.is_bot:
+                skipped_bots += 1
+                continue
+            if user.is_deleted:
+                skipped_deleted += 1
+                continue
+
+            # --- ANA DURDURMA KONTROLÜ ---
+            # Her üyede, durdurma komutu gelmiş mi diye kontrol et
+            if message.chat.id not in kumsal_tagger or kumsal_tagger[message.chat.id] != start_msg.id:
+                await app.send_message(message.chat.id, "Etiketleme işlemi başka bir komutla veya /durdur ile iptal edildi.")
+                return
+            # --- KONTROL BİTTİ ---
+
+            usrnum += 1
+            total_tagged += 1
+            usrtxt += f"• [{user.first_name}](tg://user?id={user.id})\n"
+            
+            if usrnum == nums:
+                await app.send_message(message.chat.id, f" **{msg_content}**\n\n{usrtxt}")
+                usrnum = 0
+                usrtxt = ""
+
+                # --- DUYARLI BEKLEME (YENİ) ---
+                # 5 saniye bekle, ama her saniye durdurma komutunu kontrol et
+                for _ in range(5):
+                    await asyncio.sleep(1)
+                    if message.chat.id not in kumsal_tagger or kumsal_tagger[message.chat.id] != start_msg.id:
+                        # Durdurma komutu geldiyse, bekleme döngüsünden çık
+                        break
+                # --- BEKLEME BİTTİ ---
+                
+    except Exception as e:
+        print(f"[UTAG ERROR]: {e}")
+    finally:
+        # --- DURUM TEMİZLEME (BAŞARILI BİTİŞ) ---
+        if message.chat.id in kumsal_tagger and kumsal_tagger[message.chat.id] == start_msg.id:
+            del kumsal_tagger[message.chat.id]
+        # --- TEMİZLEME BİTTİ ---
 
     await app.send_message(message.chat.id, f"""
 **Üye etiketleme işlemi tamamlandı** ✅
@@ -208,7 +260,7 @@ Sebep : {message.text}
 💣 __Atlanılan Silinen Hesap Sayısı: {skipped_deleted}__
 """)
 
-@app.on_message(filters.command(["cancel", "durdur"]) & filters.group) # Added "durdur" as an alias
+@app.on_message(filters.command(["cancel", "durdur"]) & filters.group)
 async def stop(app, message):
     admins = []
     async for member in app.get_chat_members(message.chat.id, filter=ChatMembersFilter.ADMINISTRATORS):
@@ -220,24 +272,26 @@ async def stop(app, message):
         
     if message.chat.id in kumsal_tagger:
         del kumsal_tagger[message.chat.id]
-        await message.reply("⛔ __Etiketleme işlemi durduruldu!__")
+        await message.reply("⛔ __Etiketleme işlemi durduruluyor...__")
     else:
         await message.reply("❗ __Etiketleme işlemi şu anda aktif değil.__")
 
+# --- EROS DÜZELTMELERİ ---
 members = {}
+eros_statu = [] # Global 'statu' listesi
 
 @app.on_message(filters.command("eros", ["/", ""]) & filters.group)
 async def _eros(client: app, message: Message):
     chatID = message.chat.id
-    statu = []
-    if chatID in statu:
-        return await message.reply("Aşıklar listesi güncelleniyor. Lütfen bekleyiniz..")
+    
+    if chatID in eros_statu: # Global listeyi kontrol et
+        return await message.reply("Aşıklar listesi zaten güncelleniyor. Lütfen bekleyiniz..")
 
     async def scrapper(bot: app, msg: Message):
         chat_id = msg.chat.id
         temp = {}
         try:
-            statu.append(chat_id)
+            eros_statu.append(chat_id) # Global listeye ekle
             async for member in bot.get_chat_members(chat_id, limit=200):
                 member: ChatMember
 
@@ -251,14 +305,19 @@ async def _eros(client: app, message: Message):
 
             members[chat_id]["members"] = temp
             members[chat_id]["lastUpdate"] = dt.now()
-            statu.remove(chat_id)
+            eros_statu.remove(chat_id) # Global listeden çıkar
             return True
         except Exception as e:
-            print(e)
+            print(f"[EROS SCRAPPER ERROR]: {e}")
+            if chat_id in eros_statu:
+                eros_statu.remove(chat_id) # Hata durumunda da listeden çıkar
             return False
 
     async def ship_(users: dict):
         list_ = list(users.keys())
+        if len(list_) < 2: # Eros için en az 2 üye gerekir
+            return "**Eros'un ok atması için grupta yeterli üye (en az 2) yok!**"
+            
         random.shuffle(list_)
 
         member1ID = random.choice(list_)
@@ -283,7 +342,7 @@ async def _eros(client: app, message: Message):
     if lastUpdate:
         now = dt.now()
         diff = now - lastUpdate
-        if diff.seconds > 3600 * 4:
+        if diff.seconds > 3600 * 4: # 4 saatte bir güncelle
             msg = await message.reply(
                 "Aşıklar listesi güncelleniyor, lütfen bekleyiniz..."
             )
@@ -297,6 +356,12 @@ async def _eros(client: app, message: Message):
                     "Bir hata oluştu, lütfen daha sonra tekrar deneyiniz."
                 )
         else:
+            # Üye listesi güncel, direkt 'ship' yap
+            if "members" not in members[chatID] or not members[chatID]["members"]:
+                # Hafızada üye yoksa (örn. bot yeniden başladı) tekrar tara
+                status = await scrapper(client, message)
+                if not status: return await message.reply("Üye listesi alınamadı.")
+            
             text = await ship_(members[chatID]["members"])
             return await message.reply(text)
 
@@ -360,9 +425,16 @@ async def chat_mode_callback(bot: app, cb: CallbackQuery):
     user_id = cb.from_user.id
     cmd = cb.data
 
+    # Butona basanın, komutu /chatmode yazan kişi olup olmadığını kontrol et
     if chat_id not in chat_mode_users or chat_mode_users[chat_id] != user_id:
-        await cb.answer("Bu işlemi yapma yetkiniz yok.", show_alert=True)
-        return
+        # Yetkisi yoksa, admin mi diye kontrol et (daha iyi)
+        admins = []
+        async for member in bot.get_chat_members(chat_id, filter=ChatMembersFilter.ADMINISTRATORS):
+            admins.append(member.user.id)
+        
+        if user_id not in admins:
+            await cb.answer("Bu işlemi sadece komutu başlatan kişi veya yöneticiler yapabilir.", show_alert=True)
+            return
 
     if cmd == "on":
         if chat_id in chatMode:
@@ -383,9 +455,13 @@ async def chat_mode_callback(bot: app, cb: CallbackQuery):
 @app.on_message(filters.group & filters.text & ~filters.command("chatmode"), group=10)
 async def chatModeHandler(bot: app, msg: Message):
     def lower(text):
+        if not text: # Boş mesaj kontrolü (DÜZELTME)
+            return ""
         return str(text.translate({ord("I"): ord("ı"), ord("İ"): ord("i")})).lower()
 
     def kontrol(query: Union[str, list], text: str) -> bool:
+        if not text: # Boş mesaj kontrolü (DÜZELTME)
+            return False
         if isinstance(query, str):
             return query in text.split()
         elif isinstance(query, list):
@@ -396,14 +472,15 @@ async def chatModeHandler(bot: app, msg: Message):
         else:
             return False
 
-    if msg.chat.id not in chatMode or msg.from_user.is_self:
+    # msg.text olup olmadığını kontrol et (DÜZELTME)
+    if msg.chat.id not in chatMode or msg.from_user.is_self or not msg.text:
         return
 
     text = lower(msg.text)  # * Mesajı küçük harfe çeviriyoruz
 
     reply = None
 
-    if text.startswith("Aynur"): # * Mesaj buse ile başlıyorsa cevap veriyoruz
+    if text.startswith("aynur"): # * Mesaj aynur ile başlıyorsa cevap veriyoruz (lower'dan dolayı)
         reply = random.choice(Aynur)
         await asyncio.sleep(0.06)
     
@@ -497,7 +574,7 @@ async def chatModeHandler(bot: app, msg: Message):
             
     elif kontrol(["konuşalım","konusalım"], text): # * Selam yazısı metnin içinde varsa cevap veriyoruz
         reply = random.choice(konuşalım)
-        await asyncio.sleep(0.06)   
+        await asyncio.sleep(0.gofem)   
             
     elif kontrol(["saat"], text): # * Selam yazısı metnin içinde varsa cevap veriyoruz
         reply = random.choice(saat)
@@ -755,10 +832,11 @@ async def chatModeHandler(bot: app, msg: Message):
         reply = random.choice(akşamlar)
         await asyncio.sleep(0.06)   
         
-    try:
-        await msg.reply(reply)
-    except Exception as e:
-        print(e)
+    if reply: # Sadece 'reply' varsa göndermeyi dene
+        try:
+            await msg.reply(reply)
+        except Exception as e:
+            print(f"[CHATMODE ERROR]: {e}")
 
     msg.continue_propagation()  #! BURAYA DOKUNMA
 
@@ -801,7 +879,7 @@ async def games(c: app, m: Message):
                                         [
                                             [
                                                 InlineKeyboardButton(
-                                                    "Tekkar Oyna ♻️", callback_data="basket"
+                                                    "Tekrar Oyna ♻️", callback_data="basket"
                                                 ),
                                             ]
                                         ]
