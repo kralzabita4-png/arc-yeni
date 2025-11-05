@@ -1,9 +1,8 @@
-
 import asyncio
-import random  # <-- YENİ EKLENDİ
+import random  # Glitch animasyonu için gerekli
 from pyrogram import filters
 from pyrogram.enums import ChatType, ParseMode
-from pyrogram.errors import MessageNotModified  # <-- YENİ EKLENDİ
+from pyrogram.errors import MessageNotModified  # Animasyon için gerekli
 from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from youtubesearchpython.__future__ import VideosSearch
 
@@ -83,12 +82,13 @@ async def show_loading(message: Message):
             
             await asyncio.sleep(0.5) # Bir sonraki adıma geçmeden önce durakla
 
-        # Bitiş
-        await loading_message.edit("```[ ✅ SİSTEM AKTİF! ]```")
+        # Bitiş (Son mesajın kalıcı olması için)
+        if loading_message:
+            await loading_message.edit("```[ ✅ SİSTEM AKTİF! ]```")
 
     except Exception as e:
         print(f"Hata (show_loading): {e}")
-        pass
+        pass # Hata olursa 'None' döndürecek
 
     return loading_message
 
@@ -138,7 +138,7 @@ async def fetch_video_info(message: Message, param: str, _):
     await app.send_photo(message.chat.id, photo=result['thumbnails'][0]['url'].split("?")[0], caption=caption, reply_markup=key)
 
 
-# ===================== START KOMUTU =====================
+# ===================== START KOMUTU (HATASIZ) =====================
 @app.on_message(filters.command(get_command("START_COMMAND")) & filters.private & ~BANNED_USERS)
 @LanguageStart
 async def start_comm(client, message: Message, _):
@@ -147,11 +147,13 @@ async def start_comm(client, message: Message, _):
 
     params = message.text.split(None, 1)
     if len(params) > 1:
-        await loading.delete() # Animasyon mesajını siliyoruz
+        if loading:  # <-- DÜZELTME: 'None' kontrolü eklendi
+            await loading.delete()
         return await handle_start_params(client, message, params[1], _)
 
-    # Animasyon mesajını siliyoruz
-    await loading.delete() 
+    # Animasyon mesajını sil
+    if loading:  # <-- DÜZELTME: 'None' kontrolü eklendi
+        await loading.delete() 
     try:
         OWNER = OWNER_ID[0] if await app.resolve_peer(OWNER_ID[0]) else None
     except:
