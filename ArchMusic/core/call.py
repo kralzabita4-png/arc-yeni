@@ -7,12 +7,12 @@
 # All rights reserved.
 #
 
-# REFAKTÖR NOTU (5. Tur):
-# - HEDEF: "Asistan sese çıkmıyor" sorununu teşhis etmek.
-# - 'join_call' fonksiyonuna, PyTgCalls'tan gelebilecek TÜM hataları
-#   yakalayan ve kullanıcıya bildiren bir 'except Exception' bloğu eklendi.
-# - Bu kod, sorunu çözmez; sorunun NE OLDUĞUNU (izin yetersizliği,
-#   geçersiz string session vb.) size söyler.
+# REFAKTÖR NOTU (6. Tur):
+# - HEDEF: 'Group call not found' hatasını düzeltmek.
+# - 'participants_change_handler' güncellendi.
+# - Asistanın kendisi sohbetten ayrıldığında (LeftGroupCallParticipant),
+#   'get_participants' komutunu çağırması engellendi. Bu,
+#   asistanın zaten ayrıldığı bir sohbetin listesini istemesini önler.
 
 import asyncio
 from datetime import datetime, timedelta
@@ -355,14 +355,9 @@ class Call(PyTgCalls):
             )
             await _clear_(chat_id)
             return
-            
-        # --- BU BLOK EKLENDİ (TANI İÇİN) ---
-        # PyTgCalls'tan gelebilecek diğer tüm beklenmedik hataları yakala
         except Exception as e:
-            # Bu hatayı hem loglara hem de kullanıcıya bildir
             LOGGER(__name__).critical(f"ASİSTAN ARAMAYA KATILAMADI (ChatID: {chat_id}): {type(e).__name__} - {e}")
             try:
-                # Hatayı doğrudan sohbete gönder
                 await app.send_message(
                     original_chat_id,
                     "**❌ Asistan Aramaya Katılamadı**\n\n"
@@ -373,8 +368,7 @@ class Call(PyTgCalls):
                 )
             except Exception as e2:
                 LOGGER(__name__).error(f"Hata mesajı gönderilemedi: {e2}")
-            return # Fonksiyonu sonlandır, aşağısı çalışmasın
-        # --- GÜNCELLEME SONU ---
+            return
             
         await add_active_chat(chat_id)
         await mute_off(chat_id)
@@ -549,13 +543,25 @@ class Call(PyTgCalls):
                 return
             await self.change_stream(client, update.chat_id)
 
+        # --- REFAKTÖR 6: 'Group call not found' Hatasını Engelleme ---
         async def participants_change_handler(client, update: Update):
             if not isinstance(
                 update, JoinedGroupCallParticipant
             ) and not isinstance(update, LeftGroupCallParticipant):
                 return
-
+            
             chat_id = update.chat_id
+
+            # --- YENİ MANTIK EKLENDİ ---
+            # Eğer ayrılan kişi botun kendisiyse, işlem yapma.
+            # Çünkü 'get_participants' komutu hata verecektir.
+            if isinstance(update, LeftGroupCallParticipant):
+                if update.participant.user_id == client.me.id:
+                    LOGGER(__name__).info(f"Asistan {chat_id} ID'li sohbetten ayrıldı. Sayaç güncellenmiyor.")
+                    # 'counter' ve 'autoend' temizlemeye gerek yok,
+                    # 'stop_stream' (stream_services_handler) bunu zaten yapar.
+                    return 
+            # --- GÜNCELLEME SONU ---
             
             current_users = counter.get(chat_id)
             
@@ -564,7 +570,8 @@ class Call(PyTgCalls):
                     participant_list = await client.get_participants(chat_id)
                     final_users = len(participant_list)
                 except Exception as e:
-                    LOGGER(__name__).error(f"Katılımcı listesi alınamadı: {e}")
+                    # Bu hatayı artık görmememiz lazım, ama görürsek logla ve dur.
+                    LOGGER(__name__).error(f"Katılımcı listesi alınamadı (Handler): {e}")
                     return
             else:
                 final_users = (
