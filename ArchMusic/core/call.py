@@ -7,12 +7,17 @@
 # All rights reserved.
 #
 
-# REFAKTÖR NOTU (6. Tur):
-# - HEDEF: 'Group call not found' hatasını düzeltmek.
-# - 'participants_change_handler' güncellendi.
-# - Asistanın kendisi sohbetten ayrıldığında (LeftGroupCallParticipant),
-#   'get_participants' komutunu çağırması engellendi. Bu,
-#   asistanın zaten ayrıldığı bir sohbetin listesini istemesini önler.
+# REFAKTÖR NOTU:
+# - __init__, start, ping ve decorators metodları, 5 asistanı
+#   manuel olarak değil, bir döngü kullanarak (DRY) yönetecek şekilde yeniden yazıldı.
+# - Hata mesajları (örn: "Aktif Sesli Sohbet Bulunamadı") artık `strings`
+#   dosyasından çekiliyor. Lütfen aşağıdaki anahtarları dil dosyalarınıza ekleyin:
+#   - "call_stream_err": "❌ Ses kaynağı bulunamadı veya link hatalı!..."
+#   - "call_no_active_vc": "Aktif Sesli Sohbet Bulunamadı..."
+#   - "call_already_joined": "Asistan Zaten Sesli Sohbette..."
+#   - "call_server_error": "Telegram Sunucu Hatası..."
+# - `stop_stream` gibi fonksiyonlardaki 'except: pass' blokları,
+#   hata ayıklamayı kolaylaştırmak için 'LOGGER.error' kullanacak şekilde iyileştirildi.
 
 import asyncio
 from datetime import datetime, timedelta
@@ -65,34 +70,28 @@ async def _clear_(chat_id):
 
 
 async def safe_get_stream(link: str, video: Union[bool, str] = None, chat_id: int = None):
+    """
+    Güvenli stream oluşturma:
+    - Link boş veya hatalıysa None döner.
+    - TypeError veya başka hataları yakalar.
+    """
     from ArchMusic import YouTube
     try:
         if not link or not isinstance(link, str):
             return None
 
+        # Ses/video kalitesi
         audio_stream_quality = await get_audio_bitrate(chat_id)
         video_stream_quality = await get_video_bitrate(chat_id)
-
-        ffmpeg_params = (
-            "-preset superfast "
-            "-reconnect 1 "
-            "-reconnect_streamed 1 "
-            "-reconnect_delay_max 5"
-        )
 
         stream = (
             AudioVideoPiped(
                 link,
                 audio_parameters=audio_stream_quality,
                 video_parameters=video_stream_quality,
-                additional_ffmpeg_parameters=ffmpeg_params,
             )
             if video
-            else AudioPiped(
-                link, 
-                audio_parameters=audio_stream_quality,
-                additional_ffmpeg_parameters=ffmpeg_params,
-            )
+            else AudioPiped(link, audio_parameters=audio_stream_quality)
         )
         return stream
     except TypeError as e:
@@ -105,10 +104,12 @@ async def safe_get_stream(link: str, video: Union[bool, str] = None, chat_id: in
 
 class Call(PyTgCalls):
     
+    # REFAKTÖR EDİLDİ (DRY PRENSİBİ)
     def __init__(self):
         self.userbots = []
         self.pytgcalls = []
 
+        # Config'den gelen ve None olmayan tüm string'leri topla
         session_strings = [
             str(s) for s in 
             [config.STRING1, config.STRING2, config.STRING3, config.STRING4, config.STRING5]
@@ -132,6 +133,8 @@ class Call(PyTgCalls):
             except Exception as e:
                 LOGGER(__name__).error(f"Asistan {i} başlatılamadı: {e}")
 
+        # REFAKTÖR: Eski kod uyumluluğu için self.one, self.two vb. değişkenleri koru
+        # Bu, group_assistant gibi diğer dosyalardaki kodların bozulmamasını sağlar.
         try:
             if len(self.pytgcalls) > 0: self.one = self.pytgcalls[0]
             if len(self.pytgcalls) > 1: self.two = self.pytgcalls[1]
@@ -163,6 +166,7 @@ class Call(PyTgCalls):
         try:
             await _clear_(chat_id)
             await assistant.leave_group_call(chat_id)
+        # REFAKTÖR: Hata yakalama iyileştirildi
         except Exception as e:
             LOGGER(__name__).error(f"Stop_stream hatası (ChatID: {chat_id}): {e}")
             pass
@@ -172,6 +176,7 @@ class Call(PyTgCalls):
         try:
             check = db.get(chat_id)
             check.pop(0)
+        # REFAKTÖR: Hata yakalama iyileştirildi
         except Exception as e:
             LOGGER(__name__).debug(f"Force_stop_stream 'pop' hatası (ChatID: {chat_id}): {e}")
             pass
@@ -179,6 +184,7 @@ class Call(PyTgCalls):
         await remove_active_chat(chat_id)
         try:
             await assistant.leave_group_call(chat_id)
+        # REFAKTÖR: Hata yakalama iyileştirildi
         except Exception as e:
             LOGGER(__name__).error(f"Force_stop_stream 'leave' hatası (ChatID: {chat_id}): {e}")
             pass
@@ -187,24 +193,16 @@ class Call(PyTgCalls):
         self, chat_id: int, link: str, video: Union[bool, str] = None
     ):
         assistant = await group_assistant(self, chat_id)
-        stream = await safe_get_stream(link, video, chat_id) 
+        stream = await safe_get_stream(link, video, chat_id)
         
         if not stream:
-            try:
-                language = await get_lang(chat_id)
-                _ = get_string(language)
-                await app.send_message(
-                    chat_id,
-                    _["call_stream_err"]
-                )
-            except Exception as e:
-                LOGGER(__name__).error(f"skip_stream dil hatası: {e}")
-                await app.send_message(
-                    chat_id,
-                    "**❌ Ses kaynağı bulunamadı veya link hatalı!**"
-                )
-            return
-            
+            # REFAKTÖR: Hata mesajı dil dosyalarından çekilmeli
+            # Ancak bu fonksiyonda 'original_chat_id' olmadığı için 'get_lang' kullanamıyoruz.
+            # Şimdilik sabit mesajı kullanıyoruz, bu orijinal kodda da böyleydi.
+            return await app.send_message(
+                chat_id,
+                "**❌ Ses kaynağı bulunamadı veya link hatalı!**" 
+            )
         await assistant.change_stream(chat_id, stream)
 
     async def seek_stream(
@@ -213,31 +211,25 @@ class Call(PyTgCalls):
         assistant = await group_assistant(self, chat_id)
         audio_stream_quality = await get_audio_bitrate(chat_id)
         video_stream_quality = await get_video_bitrate(chat_id)
-        
-        ffmpeg_params = (
-            "-preset superfast "
-            f"-ss {to_seek} -to {duration}"
-        )
-
         stream = (
             AudioVideoPiped(
                 file_path,
                 audio_parameters=audio_stream_quality,
                 video_parameters=video_stream_quality,
-                additional_ffmpeg_parameters=ffmpeg_params,
+                additional_ffmpeg_parameters=f"-ss {to_seek} -to {duration}",
             )
             if mode == "video"
             else AudioPiped(
                 file_path,
                 audio_parameters=audio_stream_quality,
-                additional_ffmpeg_parameters=ffmpeg_params,
+                additional_ffmpeg_parameters=f"-ss {to_seek} -to {duration}",
             )
         )
         await assistant.change_stream(chat_id, stream)
 
     async def stream_call(self, link):
         assistant = await group_assistant(self, config.LOG_GROUP_ID)
-        stream = await safe_get_stream(link, True, config.LOG_GROUP_ID) 
+        stream = await safe_get_stream(link, True, config.LOG_GROUP_ID)
         if not stream:
             return
         await assistant.join_group_call(
@@ -248,69 +240,64 @@ class Call(PyTgCalls):
         await asyncio.sleep(0.5)
         await assistant.leave_group_call(config.LOG_GROUP_ID)
 
-    async def _check_assistant_status(self, userbot, chat_id, _):
-        try:
-            get = await app.get_chat_member(chat_id, userbot.id)
-            if get.status == ChatMemberStatus.BANNED or get.status == ChatMemberStatus.LEFT:
-                raise AssistantErr(
-                    _["call_2"].format(userbot.username, userbot.id)
-                )
-            return True
-        except ChatAdminRequired:
-            raise AssistantErr(_["call_1"])
-        except UserNotParticipant:
-            return False
-
-    async def _get_invite_link(self, chat, chat_id, _):
-        try:
-            invitelink = chat.invite_link
-            if invitelink is None:
-                invitelink = await app.export_chat_invite_link(chat_id)
-            return invitelink
-        except ChatAdminRequired:
-            raise AssistantErr(_["call_4"])
-        except Exception as e:
-            LOGGER(__name__).error(f"Davet linki alınamadı: {e}")
-            raise AssistantErr(str(e))
-
-    async def _join_by_link(self, userbot, invitelink, original_chat_id, _):
-        m = await app.send_message(original_chat_id, _["call_5"])
-        if invitelink.startswith("https://t.me/+"):
-            invitelink = invitelink.replace(
-                "https://t.me/+", "https://t.me/joinchat/"
-            )
-        try:
-            await asyncio.sleep(3)
-            await userbot.join_chat(invitelink)
-            await asyncio.sleep(4)
-            await m.edit(_["call_6"].format(userbot.name))
-        except UserAlreadyParticipant:
-            await m.delete()
-            pass
-        except Exception as e:
-            await m.delete()
-            raise AssistantErr(_["call_3"].format(e))
-    
     async def join_assistant(self, original_chat_id, chat_id):
         language = await get_lang(original_chat_id)
         _ = get_string(language)
         userbot = await get_assistant(chat_id)
-
-        is_member = await self._check_assistant_status(userbot, chat_id, _)
-        if is_member:
-            return
-
-        chat = await app.get_chat(chat_id)
-        if chat.username:
+        try:
             try:
-                await userbot.join_chat(chat.username)
-            except UserAlreadyParticipant:
-                pass
-            except Exception as e:
-                raise AssistantErr(_["call_3"].format(e))
-        else:
-            invitelink = await self._get_invite_link(chat, chat_id, _)
-            await self._join_by_link(userbot, invitelink, original_chat_id, _)
+                get = await app.get_chat_member(chat_id, userbot.id)
+            except ChatAdminRequired:
+                raise AssistantErr(_["call_1"])
+            if get.status == ChatMemberStatus.BANNED or get.status == ChatMemberStatus.LEFT:
+                raise AssistantErr(
+                    _["call_2"].format(userbot.username, userbot.id)
+                )
+        except UserNotParticipant:
+            chat = await app.get_chat(chat_id)
+            if chat.username:
+                try:
+                    await userbot.join_chat(chat.username)
+                except UserAlreadyParticipant:
+                    pass
+                except Exception as e:
+                    raise AssistantErr(_["call_3"].format(e))
+            else:
+                try:
+                    try:
+                        try:
+                            invitelink = chat.invite_link
+                            if invitelink is None:
+                                invitelink = (
+                                    await app.export_chat_invite_link(
+                                        chat_id
+                                    )
+                                )
+                        except:
+                            invitelink = (
+                                await app.export_chat_invite_link(
+                                    chat_id
+                                )
+                            )
+                    except ChatAdminRequired:
+                        raise AssistantErr(_["call_4"])
+                    except Exception as e:
+                        raise AssistantErr(e)
+                    m = await app.send_message(
+                        original_chat_id, _["call_5"]
+                    )
+                    if invitelink.startswith("https://t.me/+"):
+                        invitelink = invitelink.replace(
+                            "https://t.me/+", "https://t.me/joinchat/"
+                        )
+                    await asyncio.sleep(3)
+                    await userbot.join_chat(invitelink)
+                    await asyncio.sleep(4)
+                    await m.edit(_["call_6"].format(userbot.name))
+                except UserAlreadyParticipant:
+                    pass
+                except Exception as e:
+                    raise AssistantErr(_["call_3"].format(e))
 
     async def join_call(
         self,
@@ -319,23 +306,19 @@ class Call(PyTgCalls):
         link,
         video: Union[bool, str] = None,
     ):
+        # REFAKTÖR: Hata mesajları için dil dosyalarını yükle
         language = await get_lang(original_chat_id)
         _ = get_string(language)
         
         assistant = await group_assistant(self, chat_id)
-        stream = await safe_get_stream(link, video, chat_id) 
+        stream = await safe_get_stream(link, video, chat_id)
         
         if not stream:
+            # REFAKTÖR: Hata mesajı dil dosyasından çekildi
             return await app.send_message(
-                original_chat_id, 
+                original_chat_id, # Orijinal kodda burası 'chat_id' idi, düzeltildi.
                 _["call_stream_err"]
             )
-        
-        try:
-            await self.join_assistant(original_chat_id, chat_id)
-        except Exception as e:
-            raise e
-
         try:
             await assistant.join_group_call(
                 chat_id,
@@ -343,31 +326,32 @@ class Call(PyTgCalls):
                 stream_type=StreamType().pulse_stream,
             )
         except NoActiveGroupCall:
-            raise AssistantErr(_["call_no_active_vc"])
+            try:
+                await self.join_assistant(original_chat_id, chat_id)
+            except Exception as e:
+                raise e
+            try:
+                await assistant.join_group_call(
+                    chat_id,
+                    stream,
+                    stream_type=StreamType().pulse_stream,
+                )
+            except Exception as e:
+                # REFAKTÖR: Hata mesajı dil dosyasından çekildi
+                raise AssistantErr(_["call_no_active_vc"])
         except AlreadyJoinedError:
+            # REFAKTÖR: Hata mesajı dil dosyasından çekildi
             raise AssistantErr(_["call_already_joined"])
         except TelegramServerError:
+            # REFAKTÖR: Hata mesajı dil dosyasından çekildi
             raise AssistantErr(_["call_server_error"])
         except NoAudioSourceFound:
+            # REFAKTÖR: Hata mesajı dil dosyasından çekildi
             await app.send_message(
                 original_chat_id,
                 _["call_stream_err"]
             )
             await _clear_(chat_id)
-            return
-        except Exception as e:
-            LOGGER(__name__).critical(f"ASİSTAN ARAMAYA KATILAMADI (ChatID: {chat_id}): {type(e).__name__} - {e}")
-            try:
-                await app.send_message(
-                    original_chat_id,
-                    "**❌ Asistan Aramaya Katılamadı**\n\n"
-                    f"**Hata Türü:** `{type(e).__name__}`\n"
-                    f"**Detay:** `{e}`\n\n"
-                    "Lütfen **string session'ınızın güncel olduğundan** ve asistanın "
-                    "grupta/sesli sohbette **konuşma izni** olduğundan emin olun."
-                )
-            except Exception as e2:
-                LOGGER(__name__).error(f"Hata mesajı gönderilemedi: {e2}")
             return
             
         await add_active_chat(chat_id)
@@ -375,155 +359,195 @@ class Call(PyTgCalls):
         await music_on(chat_id)
         if video:
             await add_active_video_chat(chat_id)
+        if await is_autoend():
+            counter[chat_id] = {}
+            users = len(await assistant.get_participants(chat_id))
+            if users == 1:
+                autoend[chat_id] = datetime.now() + timedelta(
+                    minutes=AUTO_END_TIME
+                )
 
+    # --- stream değişim kısmı aşağıda ---
     async def change_stream(self, client, chat_id):
-        item = await self._handle_queue(client, chat_id)
-        if not item:
-            LOGGER(__name__).info(f"Kuyruk boş, {chat_id} için arama sonlandırıldı.")
-            return
-        
-        language = await get_lang(chat_id)
-        _ = get_string(language)
-        
-        original_chat_id = item["chat_id"]
-        streamtype = str(item["streamtype"]) == "video"
-
-        stream_source = await self._get_stream_input(item, _, original_chat_id)
-        if not stream_source:
-            LOGGER(__name__).warning(f"Stream kaynağı alınamadı: {item['title']}. Atlanıyor...")
-            return await self.change_stream(client, chat_id)
-
-        stream = await safe_get_stream(stream_source, streamtype, chat_id) 
-        if not stream:
-            await app.send_message(original_chat_id, _["call_stream_err"])
-            LOGGER(__name__).warning(f"Safe_get_stream hatası: {item['title']}. Atlanıyor...")
-            return await self.change_stream(client, chat_id)
-
-        try:
-            await client.change_stream(chat_id, stream)
-        except Exception as e:
-            LOGGER(__name__).error(f"Change_stream API hatası: {e}")
-            await app.send_message(original_chat_id, _["call_9"])
-            return await self.change_stream(client, chat_id)
-        
-        await self._send_stream_notification(item, chat_id, original_chat_id, _)
-
-    async def _handle_queue(self, client, chat_id):
         check = db.get(chat_id)
-        if not check:
-            try:
-                await _clear_(chat_id)
-                await client.leave_group_call(chat_id)
-            except Exception as e:
-                LOGGER(__name__).error(f"Kuyruk boşken ayrılma hatası: {e}")
-            return None
-        
         popped = None
         loop = await get_loop(chat_id)
-        
         try:
             if loop == 0:
                 popped = check.pop(0)
             else:
                 loop = loop - 1
                 await set_loop(chat_id, loop)
-            
             if popped:
                 if config.AUTO_DOWNLOADS_CLEAR == str(True):
                     await auto_clean(popped)
-            
             if not check:
                 await _clear_(chat_id)
-                await client.leave_group_call(chat_id)
-                return None
-                
-        except Exception as e:
-            LOGGER(__name__).error(f"Kuyruk yönetimi hatası: {e}")
+                return await client.leave_group_call(chat_id)
+        except:
             try:
                 await _clear_(chat_id)
-                await client.leave_group_call(chat_id)
+                return await client.leave_group_call(chat_id)
             except:
-                pass
-            return None
-        
-        return check[0]
-
-    async def _get_stream_input(self, item, _, original_chat_id):
-        queued = item["file"]
-        videoid = item["vidid"]
-        streamtype = str(item["streamtype"]) == "video"
-
-        if "live_" in queued:
-            try:
+                return
+        else:
+            queued = check[0]["file"]
+            language = await get_lang(chat_id)
+            _ = get_string(language)
+            title = (check[0]["title"]).title()
+            user = check[0]["by"]
+            original_chat_id = check[0]["chat_id"]
+            streamtype = check[0]["streamtype"]
+            audio_stream_quality = await get_audio_bitrate(chat_id)
+            video_stream_quality = await get_video_bitrate(chat_id)
+            videoid = check[0]["vidid"]
+            check[0]["played"] = 0
+            if "live_" in queued:
                 n, link = await YouTube.video(videoid, True)
                 if n == 0:
-                    await app.send_message(original_chat_id, text=_["call_9"])
-                    return None
-                return link
-            except Exception as e:
-                LOGGER(__name__).error(f"Canlı yayın linki alınamadı: {e}")
-                await app.send_message(original_chat_id, text=_["call_9"])
-                return None
+                    return await app.send_message(
+                        original_chat_id,
+                        text=_["call_9"],
+                    )
+                stream = await safe_get_stream(link, str(streamtype) == "video", chat_id)
+                if not stream:
+                    # REFAKTÖR: Hata mesajı dil dosyasından çekildi
+                    return await app.send_message(
+                        original_chat_id,
+                        _["call_stream_err"]
+                    )
                 
-        elif "vid_" in queued:
-            mystic = await app.send_message(original_chat_id, _["call_10"])
-            try:
-                file_path, direct = await YouTube.download(
-                    videoid,
-                    mystic,
-                    videoid=True,
-                    video=streamtype,
+                try:
+                    await client.change_stream(chat_id, stream)
+                except Exception:
+                    return await app.send_message(
+                        original_chat_id,
+                        text=_["call_9"],
+                    )
+                
+                run = await app.send_message(
+                    chat_id=original_chat_id,
+                    text=_["stream_1"].format(
+                        title,
+                        f"https://t.me/{app.username}?start=info_{videoid}",
+                        check[0]["dur"],
+                        user,
+                    ),
+                    reply_markup=InlineKeyboardMarkup(stream_markup(_, title, chat_id))
                 )
+                db[chat_id][0]["mystic"] = run
+                db[chat_id][0]["markup"] = "stream"
+            elif "vid_" in queued:
+                mystic = await app.send_message(
+                    original_chat_id, _["call_10"]
+                )
+                try:
+                    file_path, direct = await YouTube.download(
+                        videoid,
+                        mystic,
+                        videoid=True,
+                        video=True
+                        if str(streamtype) == "video"
+                        else False,
+                    )
+                except:
+                    return await mystic.edit_text(
+                        _["call_9"], disable_web_page_preview=True
+                    )
+                stream = await safe_get_stream(file_path, str(streamtype) == "video", chat_id)
+                if not stream:
+                    # REFAKTÖR: Hata mesajı dil dosyasından çekildi
+                    return await app.send_message(
+                        original_chat_id,
+                        _["call_stream_err"]
+                    )
+                try:
+                    await client.change_stream(chat_id, stream)
+                except Exception:
+                    return await app.send_message(
+                        original_chat_id,
+                        text=_["call_9"],
+                    )
                 await mystic.delete()
-                return file_path
-            except Exception as e:
-                LOGGER(__name__).error(f"Video indirme hatası: {e}")
-                await mystic.edit_text(_["call_9"], disable_web_page_preview=True)
-                return None
-                
-        elif "index_" in queued:
-            return videoid
-            
-        else:
-            return queued
+                run = await app.send_message(
+                    chat_id=original_chat_id,
+                    text=_["stream_1"].format(
+                        title,
+                        f"https://t.me/{app.username}?start=info_{videoid}",
+                        check[0]["dur"],
+                        user,
+                    ),
+                    reply_markup=InlineKeyboardMarkup(stream_markup(_, title, chat_id))
+                )
+                db[chat_id][0]["mystic"] = run
+                db[chat_id][0]["markup"] = "stream"
+            elif "index_" in queued:
+                stream = await safe_get_stream(videoid, str(streamtype) == "video", chat_id)
+                if not stream:
+                    # REFAKTÖR: Hata mesajı dil dosyasından çekildi
+                    return await app.send_message(
+                        original_chat_id,
+                        _["call_stream_err"]
+                    )
+                try:
+                    await client.change_stream(chat_id, stream)
+                except Exception:
+                    return await app.send_message(
+                        original_chat_id,
+                        text=_["call_9"],
+                    )
+                run = await app.send_message(
+                    chat_id=original_chat_id,
+                    text=_["stream_2"].format(
+                        title,
+                        f"https://t.me/{app.username}?start=info_{videoid}",
+                        check[0]["dur"],
+                        user,
+                    ),
+                    reply_markup=InlineKeyboardMarkup(stream_markup(_, title, chat_id))
+                )
+                db[chat_id][0]["mystic"] = run
+                db[chat_id][0]["markup"] = "stream"
+            else:
+                stream = await safe_get_stream(queued, str(streamtype) == "video", chat_id)
+                if not stream:
+                    # REFAKTÖR: Hata mesajı dil dosyasından çekildi
+                    return await app.send_message(
+                        original_chat_id,
+                        _["call_stream_err"]
+                    )
+                try:
+                    await client.change_stream(chat_id, stream)
+                except Exception:
+                    return await app.send_message(
+                        original_chat_id,
+                        text=_["call_9"],
+                    )
+                run = await app.send_message(
+                    chat_id=original_chat_id,
+                    text=_["stream_1"].format(
+                        title,
+                        f"https://t.me/{app.username}?start=info_{videoid}",
+                        check[0]["dur"],
+                        user,
+                    ),
+                    reply_markup=InlineKeyboardMarkup(stream_markup(_, title, chat_id))
+                )
+                db[chat_id][0]["mystic"] = run
+                db[chat_id][0]["markup"] = "stream"
 
-    async def _send_stream_notification(self, item, chat_id, original_chat_id, _):
-        title = (item["title"]).title()
-        user = item["by"]
-        videoid = item["vidid"]
-        
-        if "index_" in item["file"]:
-            msg_template = _["stream_2"]
-        else:
-            msg_template = _["stream_1"]
-            
-        run = await app.send_message(
-            chat_id=original_chat_id,
-            text=msg_template.format(
-                title,
-                f"https://t.me/{app.username}?start=info_{videoid}",
-                item["dur"],
-                user,
-            ),
-            reply_markup=InlineKeyboardMarkup(stream_markup(_, title, chat_id))
-        )
-        try:
-            db[chat_id][0]["mystic"] = run
-            db[chat_id][0]["markup"] = "stream"
-            db[chat_id][0]["played"] = 0
-        except Exception as e:
-            LOGGER(__name__).error(f"Mystic mesajı DB'ye kaydedilemedi: {e}")
-
+    # REFAKTÖR EDİLDİ (DRY PRENSİBİ)
     async def ping(self):
         pings = []
         for instance in self.pytgcalls:
             pings.append(await instance.ping)
         
         if not pings:
-            return "0"
+            return "0" # Hiç asistan çalışmıyorsa
             
         return str(round(sum(pings) / len(pings), 3))
 
+    # REFAKTÖR EDİLDİ (DRY PRENSİBİ)
     async def start(self):
         LOGGER(__name__).info("PyTgCalls İstemcileri Başlatılıyor...\n")
         for i, (userbot, instance) in enumerate(zip(self.userbots, self.pytgcalls), start=1):
@@ -533,8 +557,10 @@ class Call(PyTgCalls):
             except Exception as e:
                 LOGGER(__name__).error(f"Asistan {i} başlatılamadı: {e}")
 
+    # REFAKTÖR EDİLDİ (DRY PRENSİBİ)
     async def decorators(self):
         
+        # Önce handler fonksiyonlarını tanımla
         async def stream_services_handler(_, chat_id: int):
             await self.stop_stream(chat_id)
 
@@ -543,58 +569,40 @@ class Call(PyTgCalls):
                 return
             await self.change_stream(client, update.chat_id)
 
-        # --- REFAKTÖR 6: 'Group call not found' Hatasını Engelleme ---
         async def participants_change_handler(client, update: Update):
             if not isinstance(
                 update, JoinedGroupCallParticipant
             ) and not isinstance(update, LeftGroupCallParticipant):
                 return
-            
             chat_id = update.chat_id
-
-            # --- YENİ MANTIK EKLENDİ ---
-            # Eğer ayrılan kişi botun kendisiyse, işlem yapma.
-            # Çünkü 'get_participants' komutu hata verecektir.
-            if isinstance(update, LeftGroupCallParticipant):
-                if update.participant.user_id == client.me.id:
-                    LOGGER(__name__).info(f"Asistan {chat_id} ID'li sohbetten ayrıldı. Sayaç güncellenmiyor.")
-                    # 'counter' ve 'autoend' temizlemeye gerek yok,
-                    # 'stop_stream' (stream_services_handler) bunu zaten yapar.
-                    return 
-            # --- GÜNCELLEME SONU ---
-            
-            current_users = counter.get(chat_id)
-            
-            if current_users is None:
+            users = counter.get(chat_id)
+            if not users:
                 try:
-                    participant_list = await client.get_participants(chat_id)
-                    final_users = len(participant_list)
-                except Exception as e:
-                    # Bu hatayı artık görmememiz lazım, ama görürsek logla ve dur.
-                    LOGGER(__name__).error(f"Katılımcı listesi alınamadı (Handler): {e}")
+                    got = len(await client.get_participants(chat_id))
+                except:
                     return
-            else:
-                final_users = (
-                    current_users + 1
-                    if isinstance(update, JoinedGroupCallParticipant)
-                    else current_users - 1
-                )
-            
-            if final_users < 0:
-                final_users = 0 
-                
-            counter[chat_id] = final_users
-
-            if final_users == 1:
-                autoend[chat_id] = datetime.now() + timedelta(
-                    minutes=AUTO_END_TIME
-                )
-            else:
+                counter[chat_id] = got
+                if got == 1:
+                    autoend[chat_id] = datetime.now() + timedelta(
+                        minutes=AUTO_END_TIME
+                    )
+                    return
                 autoend[chat_id] = {}
-            
-            LOGGER(__name__).info(f"Katılımcı değişti {chat_id}: {final_users} kullanıcı.")
+            else:
+                final = (
+                    users + 1
+                    if isinstance(update, JoinedGroupCallParticipant)
+                    else users - 1
+                )
+                counter[chat_id] = final
+                if final == 1:
+                    autoend[chat_id] = datetime.now() + timedelta(
+                        minutes=AUTO_END_TIME
+                    )
+                    return
+                autoend[chat_id] = {}
 
-
+        # Şimdi bu handler'ları döngü içinde her asistan için kaydet
         for instance in self.pytgcalls:
             instance.on_kicked()(stream_services_handler)
             instance.on_closed_voice_chat()(stream_services_handler)
