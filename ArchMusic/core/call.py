@@ -7,17 +7,12 @@
 # All rights reserved.
 #
 
-# REFAKTÖR NOTU (2. Tur):
-# - 'change_stream' fonksiyonu 4 ayrı yardımcı fonksiyona bölündü:
-#   - _handle_queue: Kuyruk yönetimini (pop, loop, bitince ayrılma) yapar.
-#   - _get_stream_input: 'live_', 'vid_' vb. için indirme/link alma işlemini yapar.
-#   - _send_stream_notification: 'Şimdi Oynatılıyor' mesajını gönderir.
-#   - Ana 'change_stream' artık bu fonksiyonları yöneten temiz bir 'controller' oldu.
-# - 'join_assistant' fonksiyonu 3 ayrı yardımcı fonksiyona bölündü:
-#   - _check_assistant_status: Asistanın gruptaki durumunu (banlı, üye vb.) kontrol eder.
-#   - _get_invite_link: Karmaşık davet linki alma mantığını yönetir.
-#   - _join_by_link: Link ile katılma ve 'katılıyor...' mesajını yönetir.
-# - 'skip_stream' fonksiyonundaki sabit kodlanmış (hardcoded) hata mesajı düzeltildi.
+# REFAKTÖR NOTU (4. Tur):
+# - HEDEF: Donmayı (lag) azaltmak ve akıcılığı artırmak.
+# - 'safe_get_stream' ve 'seek_stream' fonksiyonları, FFmpeg'e
+#   ek parametreler gönderecek şekilde güncellendi.
+# - "-preset superfast": CPU yükünü azaltır, zayıf sunucularda donmayı önler.
+# - "-reconnect 1 ...": Kaynak linki kesilirse otomatik yeniden bağlanır.
 
 import asyncio
 from datetime import datetime, timedelta
@@ -69,29 +64,41 @@ async def _clear_(chat_id):
     await remove_active_chat(chat_id)
 
 
+# --- REFAKTÖR 4: Akıcılık (Donma Önleme) Ayarları Eklendi ---
 async def safe_get_stream(link: str, video: Union[bool, str] = None, chat_id: int = None):
     """
-    Güvenli stream oluşturma:
-    - Link boş veya hatalıysa None döner.
-    - TypeError veya başka hataları yakalar.
+    Güvenli stream oluşturma.
+    Donmayı önlemek için FFmpeg 'preset' ve 'reconnect' bayrakları eklendi.
     """
     from ArchMusic import YouTube
     try:
         if not link or not isinstance(link, str):
             return None
 
-        # Ses/video kalitesi
         audio_stream_quality = await get_audio_bitrate(chat_id)
         video_stream_quality = await get_video_bitrate(chat_id)
+
+        # Bu parametreler CPU yükünü azaltır ve ağ hatalarını tolere eder
+        ffmpeg_params = (
+            "-preset superfast "
+            "-reconnect 1 "
+            "-reconnect_streamed 1 "
+            "-reconnect_delay_max 5"
+        )
 
         stream = (
             AudioVideoPiped(
                 link,
                 audio_parameters=audio_stream_quality,
                 video_parameters=video_stream_quality,
+                additional_ffmpeg_parameters=ffmpeg_params, # EKLENDİ
             )
             if video
-            else AudioPiped(link, audio_parameters=audio_stream_quality)
+            else AudioPiped(
+                link, 
+                audio_parameters=audio_stream_quality,
+                additional_ffmpeg_parameters=ffmpeg_params, # EKLENDİ
+            )
         )
         return stream
     except TypeError as e:
@@ -108,7 +115,6 @@ class Call(PyTgCalls):
         self.userbots = []
         self.pytgcalls = []
 
-        # Config'den gelen ve None olmayan tüm string'leri topla
         session_strings = [
             str(s) for s in 
             [config.STRING1, config.STRING2, config.STRING3, config.STRING4, config.STRING5]
@@ -132,7 +138,6 @@ class Call(PyTgCalls):
             except Exception as e:
                 LOGGER(__name__).error(f"Asistan {i} başlatılamadı: {e}")
 
-        # Eski kod uyumluluğu için self.one, self.two vb. değişkenleri koru
         try:
             if len(self.pytgcalls) > 0: self.one = self.pytgcalls[0]
             if len(self.pytgcalls) > 1: self.two = self.pytgcalls[1]
@@ -184,12 +189,12 @@ class Call(PyTgCalls):
             LOGGER(__name__).error(f"Force_stop_stream 'leave' hatası (ChatID: {chat_id}): {e}")
             pass
 
-    # --- REFAKTÖR 3: 'skip_stream' hata mesajı düzeltildi ---
     async def skip_stream(
         self, chat_id: int, link: str, video: Union[bool, str] = None
     ):
         assistant = await group_assistant(self, chat_id)
-        stream = await safe_get_stream(link, video, chat_id)
+        # Değişiklik: 'safe_get_stream' artık donma önleyici ayarları içeriyor
+        stream = await safe_get_stream(link, video, chat_id) 
         
         if not stream:
             try:
@@ -197,44 +202,52 @@ class Call(PyTgCalls):
                 _ = get_string(language)
                 await app.send_message(
                     chat_id,
-                    _["call_stream_err"] # Dil dosyasından çek
+                    _["call_stream_err"]
                 )
             except Exception as e:
-                # Dil dosyası alınamazsa (çok düşük ihtimal) eski mesajı yolla
                 LOGGER(__name__).error(f"skip_stream dil hatası: {e}")
                 await app.send_message(
                     chat_id,
                     "**❌ Ses kaynağı bulunamadı veya link hatalı!**"
                 )
-            return # Fonksiyonu sonlandır
+            return
             
         await assistant.change_stream(chat_id, stream)
 
+    # --- REFAKTÖR 4: Akıcılık (Donma Önleme) Ayarları Eklendi ---
     async def seek_stream(
         self, chat_id, file_path, to_seek, duration, mode
     ):
         assistant = await group_assistant(self, chat_id)
         audio_stream_quality = await get_audio_bitrate(chat_id)
         video_stream_quality = await get_video_bitrate(chat_id)
+        
+        # 'safe_get_stream' ile tutarlı olması için preset'leri buraya da ekliyoruz.
+        ffmpeg_params = (
+            "-preset superfast "
+            f"-ss {to_seek} -to {duration}"
+        )
+
         stream = (
             AudioVideoPiped(
                 file_path,
                 audio_parameters=audio_stream_quality,
                 video_parameters=video_stream_quality,
-                additional_ffmpeg_parameters=f"-ss {to_seek} -to {duration}",
+                additional_ffmpeg_parameters=ffmpeg_params, # GÜNCELLENDİ
             )
             if mode == "video"
             else AudioPiped(
                 file_path,
                 audio_parameters=audio_stream_quality,
-                additional_ffmpeg_parameters=f"-ss {to_seek} -to {duration}",
+                additional_ffmpeg_parameters=ffmpeg_params, # GÜNCELLENDİ
             )
         )
         await assistant.change_stream(chat_id, stream)
 
     async def stream_call(self, link):
         assistant = await group_assistant(self, config.LOG_GROUP_ID)
-        stream = await safe_get_stream(link, True, config.LOG_GROUP_ID)
+        # 'safe_get_stream' artık donma önleyici ayarları içeriyor
+        stream = await safe_get_stream(link, True, config.LOG_GROUP_ID) 
         if not stream:
             return
         await assistant.join_group_call(
@@ -245,38 +258,32 @@ class Call(PyTgCalls):
         await asyncio.sleep(0.5)
         await assistant.leave_group_call(config.LOG_GROUP_ID)
 
-    # --- REFAKTÖR 2: 'join_assistant' için yardımcı fonksiyonlar ---
     async def _check_assistant_status(self, userbot, chat_id, _):
-        """Yardımcı: Asistanın gruptaki durumunu kontrol eder."""
         try:
             get = await app.get_chat_member(chat_id, userbot.id)
             if get.status == ChatMemberStatus.BANNED or get.status == ChatMemberStatus.LEFT:
                 raise AssistantErr(
                     _["call_2"].format(userbot.username, userbot.id)
                 )
-            return True # Zaten grupta
+            return True
         except ChatAdminRequired:
             raise AssistantErr(_["call_1"])
         except UserNotParticipant:
-            return False # Grupta değil, katılma işlemi gerekli
+            return False
 
     async def _get_invite_link(self, chat, chat_id, _):
-        """Yardımcı: Grubun davet linkini alır veya oluşturur."""
         try:
             invitelink = chat.invite_link
             if invitelink is None:
-                # Bir kez daha dene, 'export' yetkisi gerekebilir
                 invitelink = await app.export_chat_invite_link(chat_id)
             return invitelink
         except ChatAdminRequired:
             raise AssistantErr(_["call_4"])
         except Exception as e:
-            # 'export_chat_invite_link' için genel bir hata
             LOGGER(__name__).error(f"Davet linki alınamadı: {e}")
-            raise AssistantErr(str(e)) # Orijinal hatayı fırlat
+            raise AssistantErr(str(e))
 
     async def _join_by_link(self, userbot, invitelink, original_chat_id, _):
-        """Yardımcı: Asistanı davet linki ile gruba davet eder."""
         m = await app.send_message(original_chat_id, _["call_5"])
         if invitelink.startswith("https://t.me/+"):
             invitelink = invitelink.replace(
@@ -288,13 +295,12 @@ class Call(PyTgCalls):
             await asyncio.sleep(4)
             await m.edit(_["call_6"].format(userbot.name))
         except UserAlreadyParticipant:
-            await m.delete() # Zaten gruptaysa mesajı sil
+            await m.delete()
             pass
         except Exception as e:
             await m.delete()
             raise AssistantErr(_["call_3"].format(e))
     
-    # --- REFAKTÖR 2: 'join_assistant' ana fonksiyonu sadeleştirildi ---
     async def join_assistant(self, original_chat_id, chat_id):
         language = await get_lang(original_chat_id)
         _ = get_string(language)
@@ -302,9 +308,8 @@ class Call(PyTgCalls):
 
         is_member = await self._check_assistant_status(userbot, chat_id, _)
         if is_member:
-            return # Zaten grupta, bir şey yapmaya gerek yok
+            return
 
-        # Grupta değil, katılmayı dene
         chat = await app.get_chat(chat_id)
         if chat.username:
             try:
@@ -314,7 +319,6 @@ class Call(PyTgCalls):
             except Exception as e:
                 raise AssistantErr(_["call_3"].format(e))
         else:
-            # Kullanıcı adı yok, davet linki kullan
             invitelink = await self._get_invite_link(chat, chat_id, _)
             await self._join_by_link(userbot, invitelink, original_chat_id, _)
 
@@ -329,13 +333,20 @@ class Call(PyTgCalls):
         _ = get_string(language)
         
         assistant = await group_assistant(self, chat_id)
-        stream = await safe_get_stream(link, video, chat_id)
+        # 'safe_get_stream' artık donma önleyici ayarları içeriyor
+        stream = await safe_get_stream(link, video, chat_id) 
         
         if not stream:
             return await app.send_message(
                 original_chat_id, 
                 _["call_stream_err"]
             )
+        
+        try:
+            await self.join_assistant(original_chat_id, chat_id)
+        except Exception as e:
+            raise e
+
         try:
             await assistant.join_group_call(
                 chat_id,
@@ -343,18 +354,7 @@ class Call(PyTgCalls):
                 stream_type=StreamType().pulse_stream,
             )
         except NoActiveGroupCall:
-            try:
-                await self.join_assistant(original_chat_id, chat_id)
-            except Exception as e:
-                raise e
-            try:
-                await assistant.join_group_call(
-                    chat_id,
-                    stream,
-                    stream_type=StreamType().pulse_stream,
-                )
-            except Exception as e:
-                raise AssistantErr(_["call_no_active_vc"])
+            raise AssistantErr(_["call_no_active_vc"])
         except AlreadyJoinedError:
             raise AssistantErr(_["call_already_joined"])
         except TelegramServerError:
@@ -372,26 +372,12 @@ class Call(PyTgCalls):
         await music_on(chat_id)
         if video:
             await add_active_video_chat(chat_id)
-        if await is_autoend():
-            counter[chat_id] = {}
-            try:
-                users = len(await assistant.get_participants(chat_id))
-            except Exception as e:
-                LOGGER(__name__).error(f"Katılımcı sayısı alınamadı (join_call): {e}")
-                users = 1 # Hata olursa 1 varsay
-                
-            if users == 1:
-                autoend[chat_id] = datetime.now() + timedelta(
-                    minutes=AUTO_END_TIME
-                )
 
-    # --- REFAKTÖR 1: 'change_stream' ana fonksiyonu sadeleştirildi ---
     async def change_stream(self, client, chat_id):
-        # 1. Kuyruğu yönet, sıradaki 'item'ı al veya aramayı bitir
         item = await self._handle_queue(client, chat_id)
         if not item:
             LOGGER(__name__).info(f"Kuyruk boş, {chat_id} için arama sonlandırıldı.")
-            return # Kuyruk boş, arama sonlandırıldı
+            return
         
         language = await get_lang(chat_id)
         _ = get_string(language)
@@ -399,36 +385,28 @@ class Call(PyTgCalls):
         original_chat_id = item["chat_id"]
         streamtype = str(item["streamtype"]) == "video"
 
-        # 2. Kaynağı al (indirme/link alma)
         stream_source = await self._get_stream_input(item, _, original_chat_id)
         if not stream_source:
-            # _get_stream_input hata mesajını zaten gönderdi.
-            # Bir sonraki şarkıyı çalmayı dene (rekürsif çağrı).
             LOGGER(__name__).warning(f"Stream kaynağı alınamadı: {item['title']}. Atlanıyor...")
             return await self.change_stream(client, chat_id)
 
-        # 3. Stream'i oluştur
-        stream = await safe_get_stream(stream_source, streamtype, chat_id)
+        # 'safe_get_stream' artık donma önleyici ayarları içeriyor
+        stream = await safe_get_stream(stream_source, streamtype, chat_id) 
         if not stream:
             await app.send_message(original_chat_id, _["call_stream_err"])
             LOGGER(__name__).warning(f"Safe_get_stream hatası: {item['title']}. Atlanıyor...")
-            return await self.change_stream(client, chat_id) # Bir sonrakini dene
+            return await self.change_stream(client, chat_id)
 
-        # 4. Stream'i değiştir
         try:
             await client.change_stream(chat_id, stream)
         except Exception as e:
             LOGGER(__name__).error(f"Change_stream API hatası: {e}")
-            await app.send_message(original_chat_id, _["call_9"]) # call_9 = Genel oynatma hatası
-            return await self.change_stream(client, chat_id) # Bir sonrakini dene
+            await app.send_message(original_chat_id, _["call_9"])
+            return await self.change_stream(client, chat_id)
         
-        # 5. Bildirim gönder
         await self._send_stream_notification(item, chat_id, original_chat_id, _)
 
-    # --- REFAKTÖR 1: 'change_stream' için yardımcı fonksiyonlar ---
-
     async def _handle_queue(self, client, chat_id):
-        """Yardımcı: Kuyruğu yönetir, bir sonraki 'item'ı döndürür veya aramayı sonlandırır."""
         check = db.get(chat_id)
         if not check:
             try:
@@ -466,10 +444,9 @@ class Call(PyTgCalls):
                 pass
             return None
         
-        return check[0] # Sıradaki 'item'
+        return check[0]
 
     async def _get_stream_input(self, item, _, original_chat_id):
-        """Yardımcı: 'item' türüne göre stream kaynağını (link/dosya yolu) döndürür."""
         queued = item["file"]
         videoid = item["vidid"]
         streamtype = str(item["streamtype"]) == "video"
@@ -503,21 +480,20 @@ class Call(PyTgCalls):
                 return None
                 
         elif "index_" in queued:
-            return videoid # Zaten bir link (HLS/M3U8)
+            return videoid
             
         else:
-            return queued # Zaten bir link (doğrudan link veya dosya yolu)
+            return queued
 
     async def _send_stream_notification(self, item, chat_id, original_chat_id, _):
-        """Yardımcı: 'Şimdi Oynatılıyor' mesajını gönderir ve DB'ye kaydeder."""
         title = (item["title"]).title()
         user = item["by"]
         videoid = item["vidid"]
         
         if "index_" in item["file"]:
-            msg_template = _["stream_2"] # HLS/Link için farklı format
+            msg_template = _["stream_2"]
         else:
-            msg_template = _["stream_1"] # Standart format
+            msg_template = _["stream_1"]
             
         run = await app.send_message(
             chat_id=original_chat_id,
@@ -530,14 +506,11 @@ class Call(PyTgCalls):
             reply_markup=InlineKeyboardMarkup(stream_markup(_, title, chat_id))
         )
         try:
-            # check[0] (item) hala db[chat_id][0] olmalı
             db[chat_id][0]["mystic"] = run
             db[chat_id][0]["markup"] = "stream"
-            db[chat_id][0]["played"] = 0 # 'played' durumunu sıfırla
+            db[chat_id][0]["played"] = 0
         except Exception as e:
             LOGGER(__name__).error(f"Mystic mesajı DB'ye kaydedilemedi: {e}")
-
-    # --- Diğer Fonksiyonlar (Önceki Refaktörden) ---
 
     async def ping(self):
         pings = []
@@ -545,7 +518,7 @@ class Call(PyTgCalls):
             pings.append(await instance.ping)
         
         if not pings:
-            return "0" # Hiç asistan çalışmıyorsa
+            return "0"
             
         return str(round(sum(pings) / len(pings), 3))
 
@@ -560,7 +533,6 @@ class Call(PyTgCalls):
 
     async def decorators(self):
         
-        # Önce handler fonksiyonlarını tanımla
         async def stream_services_handler(_, chat_id: int):
             await self.stop_stream(chat_id)
 
@@ -574,35 +546,40 @@ class Call(PyTgCalls):
                 update, JoinedGroupCallParticipant
             ) and not isinstance(update, LeftGroupCallParticipant):
                 return
-            chat_id = update.chat_id
-            users = counter.get(chat_id)
-            if not users:
-                try:
-                    got = len(await client.get_participants(chat_id))
-                except:
-                    return
-                counter[chat_id] = got
-                if got == 1:
-                    autoend[chat_id] = datetime.now() + timedelta(
-                        minutes=AUTO_END_TIME
-                    )
-                    return
-                autoend[chat_id] = {}
-            else:
-                final = (
-                    users + 1
-                    if isinstance(update, JoinedGroupCallParticipant)
-                    else users - 1
-                )
-                counter[chat_id] = final
-                if final == 1:
-                    autoend[chat_id] = datetime.now() + timedelta(
-                        minutes=AUTO_END_TIME
-                    )
-                    return
-                autoend[chat_id] = {}
 
-        # Şimdi bu handler'ları döngü içinde her asistan için kaydet
+            chat_id = update.chat_id
+            
+            current_users = counter.get(chat_id)
+            
+            if current_users is None:
+                try:
+                    participant_list = await client.get_participants(chat_id)
+                    final_users = len(participant_list)
+                except Exception as e:
+                    LOGGER(__name__).error(f"Katılımcı listesi alınamadı: {e}")
+                    return
+            else:
+                final_users = (
+                    current_users + 1
+                    if isinstance(update, JoinedGroupCallParticipant)
+                    else current_users - 1
+                )
+            
+            if final_users < 0:
+                final_users = 0 
+                
+            counter[chat_id] = final_users
+
+            if final_users == 1:
+                autoend[chat_id] = datetime.now() + timedelta(
+                    minutes=AUTO_END_TIME
+                )
+            else:
+                autoend[chat_id] = {}
+            
+            LOGGER(__name__).info(f"Katılımcı değişti {chat_id}: {final_users} kullanıcı.")
+
+
         for instance in self.pytgcalls:
             instance.on_kicked()(stream_services_handler)
             instance.on_closed_voice_chat()(stream_services_handler)
