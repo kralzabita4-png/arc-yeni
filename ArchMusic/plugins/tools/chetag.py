@@ -259,7 +259,6 @@ Sebep : {message.text}
 🤖 __Atlanılan Bot Sayısı: {skipped_bots}__
 💣 __Atlanılan Silinen Hesap Sayısı: {skipped_deleted}__
 """)
-
 @app.on_message(filters.command(["cancel", "durdur"]) & filters.group)
 async def stop(app, message):
     admins = []
@@ -270,11 +269,17 @@ async def stop(app, message):
         await message.reply("❗ Bu komutu kullanmak için yönetici olmalısınız!")
         return
         
+    # Eğer o grupta aktif bir etiketleme varsa
     if message.chat.id in kumsal_tagger:
-        del kumsal_tagger[message.chat.id]
-        await message.reply("⛔ __Etiketleme işlemi durduruluyor...__")
+        try:
+            del kumsal_tagger[message.chat.id]  # Etiketlemeyi durdur
+            await message.reply("⛔ **Etiketleme işlemi durduruldu!**")
+        except Exception as e:
+            print(f"[CANCEL ERROR]: {e}")
+            await message.reply("⚠️ Durdurma sırasında bir hata oluştu.")
     else:
-        await message.reply("❗ __Etiketleme işlemi şu anda aktif değil.__")
+        await message.reply("❗ Şu anda aktif bir etiketleme işlemi yok.")
+
 
 # --- EROS DÜZELTMELERİ ---
 members = {}
