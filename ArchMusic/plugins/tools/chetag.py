@@ -260,7 +260,7 @@ Sebep : {message.text}
 💣 __Atlanılan Silinen Hesap Sayısı: {skipped_deleted}__
 """)
 @app.on_message(filters.command(["cancel", "durdur"]) & filters.group)
-async def stop(app, message):
+async def stop_all_tags(app, message):
     admins = []
     async for member in app.get_chat_members(message.chat.id, filter=ChatMembersFilter.ADMINISTRATORS):
         admins.append(member.user.id)
@@ -268,17 +268,36 @@ async def stop(app, message):
     if message.from_user.id not in admins:
         await message.reply("❗ Bu komutu kullanmak için yönetici olmalısınız!")
         return
-        
-    # Eğer o grupta aktif bir etiketleme varsa
-    if message.chat.id in kumsal_tagger:
+
+    # 🔹 Eğer herhangi bir grup etiketleme yapıyorsa:
+    if kumsal_tagger:
         try:
-            del kumsal_tagger[message.chat.id]  # Etiketlemeyi durdur
-            await message.reply("⛔ **Etiketleme işlemi durduruldu!**")
+            # Tüm aktif gruplar için durdurma sinyali gönder
+            active_chats = list(kumsal_tagger.keys())
+            for chat_id in active_chats:
+                kumsal_tagger[chat_id] = None  # döngülere 'dur' sinyali
+            await asyncio.sleep(0.3)  # döngülerin fark etmesi için kısa gecikme
+
+            # Tüm kayıtları temizle
+            kumsal_tagger.clear()
+
+            await message.reply("⛔ **Tüm etiketleme işlemleri durduruldu!**")
+
+            # Log grubuna da bilgi gönder
+            await app.send_message(
+                LOG_GROUP_ID,
+                f"""
+🛑 **Tüm Etiketleme Durduruldu**
+👤 Durduran: [{message.from_user.first_name}](tg://user?id={message.from_user.id})
+💬 Grup: {message.chat.title} (`{message.chat.id}`)
+🕒 Zaman: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+"""
+            )
         except Exception as e:
             print(f"[CANCEL ERROR]: {e}")
             await message.reply("⚠️ Durdurma sırasında bir hata oluştu.")
     else:
-        await message.reply("❗ Şu anda aktif bir etiketleme işlemi yok.")
+        await message.reply("❗ Şu anda hiçbir aktif etiketleme işlemi yok.")
 
 
 # --- EROS DÜZELTMELERİ ---
