@@ -56,32 +56,28 @@ HELP_2 = """🥏 <u>BOT KOMUTLARI</u>
 📄 /gbannedusers      - Yasaklı kullanıcı listesini gösterir
 """
 
-HELP_3 = """<u>🎮 EĞLENCE & OYUN KOMUTLARI 🎮</u>
+HELP_3 = """<u>🎮 ETİKET & EĞLENCE KOMUTLARI 🎮</u>
 
-🎯 /oyun - Oyun menüsünü açar
-💬 /dogruluk - Rastgele bir doğruluk sorusu gönderir
-🔥 /cesaret - Rastgele bir cesaret görevi gönderir
-🎭 /kelime - Kelime tahmin oyununu başlatır
-🧩 /bitir - Oyunu sonlandırır
+🤖 /chatmode - Yapay zekayı grup sohbetinde çalıştırır  
+👥 /tag - Grubunuzdaki tüm üyeleri isimleriyle etiketler  
+👥 /utag - Grubunuzdaki tüm üyeleri toplu olarak etiketler  
 
-🎰 /zar - Rastgele bir zar atar
-🪙 /para - Yazı tura atar
-🎲 /sayi - 1 ile 100 arasında rastgele bir sayı üretir
-📜 /atasözü - Rastgele bir atasözü gönderir
-😂 /komik - Rastgele komik bir cümle gönderir
-💌 /ask - Aşk oranını hesaplar (Örnek: /ask @kullanici)
-📸 /meme - Rastgele bir meme resmi gönderir
-🎵 /bulmaca - Rastgele bir müzik bulmacası gönderir
+💘 /eros - Aşk listesini günceller veya eşleştirme yapar  
 
-🌸 Eğlenmek için tek komut yeter!
-"""
+🎲 /zar - Zar atar (1️⃣-6️⃣ arası rastgele sayı)  
+🎯 /dart - Dart atar  
+🏀 /basket - Basketbol oyunu oynar  
+⚽ /fotbol - Futbol oyunu oynar  
+🎳 /bowling - Bowling oyunu oynar  
 
-HELP_4 = """<u>🎮 Etikt KOMUTLARI 🎮</u>
+🎰 /slot - Slot makinesi oynar  
+💸 /para - Mevcut paranı gösterir veya günceller  
 
-🤖 /chatmode - Yapay zeka çalıştırır
+😂 /mani - Rastgele mani söyler  
+🤣 /saka - Şaka yapar  
+👋 /slap - Birini tokatlar (eğlencelik komut)  
+💡 /oner - Rastgele öneri verir (film, müzik, vs.)
 
-👥 /tag    - Grubunuzdaki tüm üyeleri isimleriyle etiketler
-🛡️ /atag   - Grubunuzdaki tüm yöneticileri etiketler
-🏳️ /btag   - Grubunuzdaki tüm üyeleri bayraklarla etiketler
-🎭 /ctag   - Grubunuzdaki tüm üyeleri karakter isimleri ile etiketler
+❤️ /d - Doğruluk oyunu başlatır  
+🔥 /c - Cesaret oyunu başlatır
 """
