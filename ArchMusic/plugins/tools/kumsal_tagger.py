@@ -118,6 +118,111 @@ Sebep : {message.text}
 
 #--------------------------------------------------------------------------------------
 
+#--------------------------------------------------------------------------------------
+
+@app.on_message(filters.command("kurttag") & filters.group)
+async def kurttag(app, message):
+    """
+    ➪ /kurttag - sɪᴢɪɴ ɪᴄ‌ɪɴ ᴋᴜʀᴛ ᴏʏᴜɴᴜɴᴀ ᴅᴀᴠᴇᴛ ᴇᴅᴇʀ..
+    """
+    admins = []
+    async for member in app.get_chat_members(message.chat.id, filter=ChatMembersFilter.ADMINISTRATORS):
+        admins.append(member.user.id)
+
+    if message.from_user.id not in admins:
+        await message.reply("❗ Bu komutu kullanmak için yönetici olmalısınız!")
+        return
+
+    args = message.command
+
+    if len(args) > 1:
+        msg_content = " ".join(args[1:])
+    elif message.reply_to_message:
+        msg_content = message.reply_to_message.text
+        if msg_content is None:
+            await message.reply("❗ Eski mesajı göremiyorum!")
+            return
+    else:
+        msg_content = ""
+
+    total_members = 0
+    async for member in app.get_chat_members(message.chat.id):
+        user = member.user
+        if not user.is_bot and not user.is_deleted:
+            total_members += 1
+
+    user = message.from_user
+    chat = message.chat
+    
+    await app.send_message(LOG_GROUP_ID, f"""
+
+Etiket işlemi bildirimi.
+
+Kullanan : {user.mention} [`{user.id}`]
+Etiket Tipi : 🐺 Kurt Tag
+
+Grup : {chat.title}
+Grup İD : `{chat.id}`
+
+Sebep : {message.text}
+"""
+ )
+
+    num = 10
+    estimated_time = (total_members // num) * 5
+
+    start_msg = await message.reply(f"""
+**🐺 ᴋᴜʀᴛ ᴏʏᴜɴᴜ ʙᴀşʟɪʏᴏʀ! ʜᴀʏᴅɪ ɢᴇʟ! 🌕🔥**
+
+**Botlar ve silinen hesaplar atlanacak.**
+
+👥 __Toplam Etiketlenecek Üye Sayısı: {total_members}__
+⏳ __Tahmini Süre: {estimated_time // 60} dakika__
+""")
+
+    kumsal_tagger[message.chat.id] = start_msg.id
+    nums = 10
+    usrnum = 0
+    skipped_bots = 0
+    skipped_deleted = 0
+    total_tagged = 0
+    usrtxt = ""
+
+    async for member in app.get_chat_members(message.chat.id):
+        user = member.user
+        if user.is_bot:
+            skipped_bots += 1
+            continue
+        if user.is_deleted:
+            skipped_deleted += 1
+            continue
+        usrnum += 1
+        total_tagged += 1
+        usrtxt += f"🐺 [{user.first_name}](tg://user?id={user.id})\n"
+
+        # Durdurulma kontrolü
+        if message.chat.id not in kumsal_tagger or kumsal_tagger[message.chat.id] != start_msg.id:
+            return
+
+        # Her 10 kullanıcıda bir mesaj gönder
+        if usrnum == nums:
+            await app.send_message(
+                message.chat.id,
+                f"**{msg_content or '🌕 ᴀʜᴜᴜᴜᴜᴜᴜ! ᴋᴜʀᴛʟᴀʀ ᴏʏᴜɴᴜɴᴀ ᴋᴀᴛɪʟɪʏᴏʀ 🐺🔥'}**\n\n{usrtxt}"
+            )
+            usrnum = 0
+            usrtxt = ""
+            await asyncio.sleep(5)
+
+    await app.send_message(message.chat.id, f"""
+**🌕 ᴋᴜʀᴛ ᴏʏᴜɴᴜ sᴏɴʟᴀɴᴅɪ!** ✅
+
+👥 __Etiketlenen Üye: {total_tagged}__
+🤖 __Atlanılan Bot: {skipped_bots}__
+💣 __Atlanılan Silinen Hesap: {skipped_deleted}__
+""")
+    
+
 @app.on_message(filters.command("utag") & filters.group)
 async def utag(app, message):
     admins = []
