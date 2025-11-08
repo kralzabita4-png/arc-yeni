@@ -327,6 +327,68 @@ Sebep : {message.text}
 🤖 __Atlanılan Bot: {skipped_bots}__
 💣 __Atlanılan Silinen Hesap: {skipped_deleted}__
 """)
+
+
+
+
+@app.on_message(filters.command("anonimtag") & filters.group)
+async def anonimtag(app, message):
+    # Sadece adminler kullanabilir
+    admins = []
+    async for member in app.get_chat_members(message.chat.id, filter=ChatMembersFilter.ADMINISTRATORS):
+        admins.append(member.user.id)
+
+    if message.from_user.id not in admins:
+        await message.reply("❗ Bu komutu kullanmak için yönetici olmalısınız!")
+        return
+
+    user = message.from_user
+    chat = message.chat
+
+    # LOG
+    await app.send_message(LOG_GROUP_ID, f"""
+Anonim oyunu daveti bildirimi.
+
+Kullanan : {user.mention} [`{user.id}`]
+Etiket Tipi : Tekli Anonim Tag
+
+Grup : {chat.title}
+Grup İD : `{chat.id}`
+
+Sebep : {message.text}
+""")
+
+    start_msg = await message.reply("🎭 **Anonim oyunu başlıyor!** Silinen hesapları ve botları atlayacak.")
+    kumsal_tagger[message.chat.id] = start_msg.id
+
+    skipped_bots = 0
+    skipped_deleted = 0
+    total_tagged = 0
+
+    async for member in app.get_chat_members(message.chat.id):
+        u = member.user
+        if u.is_bot:
+            skipped_bots += 1
+            continue
+        if u.is_deleted:
+            skipped_deleted += 1
+            continue
+
+        total_tagged += 1
+        # Tekli mesaj, rastgele 50 mesajdan biri
+        await app.send_message(
+            message.chat.id,
+            f"[{u.first_name}](tg://user?id={u.id}), {random.choice(anonim_messages)}"
+        )
+        await asyncio.sleep(2)  # Her kullanıcıya 2 saniye arayla
+
+    await app.send_message(message.chat.id, f"""
+**Anonim davetleri tamamlandı** ✅
+
+👥 __Davet edilen üye: {total_tagged}__
+🤖 __Atlanılan Bot: {skipped_bots}__
+💣 __Atlanılan Silinen Hesap: {skipped_deleted}__
+""")
     
 #--------------------------------------------------------------------------------------
 
